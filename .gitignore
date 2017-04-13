@@ -89,8 +89,8 @@ srp-env/
 # Rope project settings
 .ropeproject
 
-# IntelliJ
-.idea
-
 # Scratch workspace
 scratch
+
+# Visual Studio
+.vs
