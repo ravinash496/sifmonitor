@@ -8,7 +8,6 @@ Download and install python (Windows) from [here](https://www.python.org/ftp/pyt
 Download and install GitHub (Windows) from [here](https://desktop.github.com)  
 
 ### Pull the project from GitHub
-`git clone https://github.com/Geo-Comm/lostservice.git`  
 `git clone https://github.com/Geo-Comm/sifmonitor.git`  
 
 ### Set up your project python environment.
