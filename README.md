@@ -11,7 +11,7 @@ Download and install GitHub (Windows) from [here](https://desktop.github.com)
 `git clone https://github.com/Geo-Comm/sifmonitor.git`  
 
 ### Set up your project python environment.
-`cd projecct folder`  
+`cd <project folder>`  
 `virtualenv --python c:\Users\<your user>\AppData\Local\Programs\Python\Python36\python.exe lost-env`  
 `.\lost-env\Scripts\activate`  
 `pip install -r requirements.txt`  
