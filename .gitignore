@@ -98,3 +98,6 @@ scratch
 # PyCharm
 **/.idea/workspace.xml
 **/.idea/tasks.xml
+
+#Idea
+.idea/*
