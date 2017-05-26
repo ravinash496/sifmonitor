@@ -1,0 +1,21 @@
+{
+"postgres":
+    {
+        "host": "192.168.11.176", 
+        "user": "postgres",
+        "password": "GeoComm1",
+        "port": "5432",
+        "db": "postgres"
+    },
+"geocomm":
+    {
+        "host": "192.168.11.176", 
+        "user": "postgres",
+        "password": "GeoComm1",
+        "port": "5432",
+        "db": "GeoComm"
+
+    }
+}
+
+
