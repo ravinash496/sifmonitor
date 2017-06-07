@@ -38,6 +38,7 @@ class DB:
         #    connection.close()
         # return trans
 
+
     def get_replicationfeeds(self):
         engine = self.connect() 
         try:
@@ -48,6 +49,7 @@ class DB:
                 return feed
         except Exception as error:
             print(error)
+
 
     def update_last_processed(self, timestamp_update_date, previous_time_stamp, item_id):
         """Update the replicationFeed updatelastprocessed based on XML"""
@@ -60,6 +62,7 @@ class DB:
         except Exception as error:
             print(error)
 
+    
     def get_service_urn_layer_mapping(self, transaction_data):
         table_name = "serviceurnlayermapping"
         transaction_type = list(transaction_data.keys())[0]
@@ -75,6 +78,7 @@ class DB:
         except Exception as error:
             print(error)
 
+    
     def connect(self):
         '''Returns a connection and a metadata object'''
         # We connect with the help of the PostgreSQL URL
@@ -91,3 +95,5 @@ class DB:
         engine = create_engine(url)
         # The return value of create_engine() is our connection object
         return engine
+
+

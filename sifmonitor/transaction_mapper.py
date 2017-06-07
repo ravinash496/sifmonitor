@@ -584,7 +584,7 @@ def MapServiceBoundarySI_to_UDM_Insert(transaction_data, transaction_type='Inser
                      paravalues[12],
                      paravalues[13], paravalues[14])
         sql = sql.replace("'None'", 'NULL')
-        action_statement = "Insertion of values into stateboundary table sucessfull"
+        action_statement = "Insertion of values into serviceboundary table sucessfull"
         geocomm = postgresdb.DB(database='geocomm')
         geocomm.transaction_sql(sql, action_statement)
     else:
@@ -625,7 +625,7 @@ def MapServiceBoundarySI_to_UDM_Update(transaction_data, transaction_type='Updat
     return mandatory_check
 
 
-def MapServiceBoundarySI_to_UDM_Delete(transaction_data, transaction_type='Delete'):
+def MapServiceBoundarySI_to_UDM_Delete(transaction_data, transaction_type='Delete'): 
     postgres = postgresdb.DB(database='postgres')
     table_name = 'serviceboundary'
     service_table_name = postgres.get_service_urn_layer_mapping(transaction_data)
@@ -642,115 +642,13 @@ def MapServiceBoundarySI_to_UDM_Delete(transaction_data, transaction_type='Delet
             paravalues.append(service_boundary[param])
 
     sql = "Delete from {} where srcunqid = '{}';".format(service_table_name, paravalues[0])
-    action_statement = "Deletion of  values into stateboundary table sucessfull"
+    action_statement = "Deletion of  values into serviceboundary table sucessfull"
     geocomm = postgresdb.DB(database='geocomm')
     geocomm.transaction_sql(sql, action_statement)
     return True
 
-# -------------------------------------
-# TABLE_Roadalias = "roadalias"
-#
-#
-# def AddAliasCenterlineParameters_Insert(aliasStree):
-#     sql = 'Insert into ' + TABLE_Roadalias + """(srcunqid, rsrcunqid, srcofdata, updatedate, effective, expire, apremod, apredir, apretype, apretypesep, astrname, aposttype, apostdir, apostmod )
-#         values(ST_SetSRID(ST_GeomFromGML(%s),4326),%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
-#     sql = sql.replace("'None'", 'NULL')
-#     paramkeylist = ['RoadSegmentUniqueId',
-#                     'SourceofData',
-#                     'DateUpdated',
-#                     'EffectiveDate',
-#                     'ExpirationDate',
-#                     'StreetNamePreModifier',
-#                     'StreetNamePreDirectional',
-#                     'StreetNamePreType',
-#                     'StreetNamePreTypeSeparator'
-#                     'StreetName',
-#                     'StreetNamePostType',
-#                     'StreetNamePostDirectional',
-#                     'StreetNamePostModifier']
-#
-#     paravalues = [aliasStree[x] for x in paramkeylist]  # list Comprehension
-#
-#     # centerlins={'ESNRight':'us','ESNleft':'uk'}
-#     # parakeys=['ESNLeft','ESNRight']
-#     # paravalues=['us','uk'] after the list comprehension
-#
-#
-#     try:
-#         cursor = connectdb(str(DB.POSTGRES)).cursor()
-#         cursor.execute(sql, paravalues)
-#         con.commit()
-#         print("AliasStree inserted")
-#     except psycopg2.Error as e:
-#         print(e.pgerror)
-#     finally:
-#         con.close()
-#
-#
-# def AddAliasCenterlineParameters_Update(aliasStree):
-#     sql = 'Update into ' + TABLE_Roadalias + """(srcunqid, rsrcunqid, srcofdata, updatedate, effective, expire, apremod, apredir, apretype, apretypesep, astrname, aposttype, apostdir, apostmod )
-#         values(ST_SetSRID(ST_GeomFromGML(%s),4326),%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
-#
-#     paramkeylist = ['RoadSegmentUniqueId',
-#                     'SourceofData',
-#                     'DateUpdated',
-#                     'EffectiveDate',
-#                     'ExpirationDate',
-#                     'StreetNamePreModifier',
-#                     'StreetNamePreDirectional',
-#                     'StreetNamePreType',
-#                     'StreetNamePreTypeSeparator'
-#                     'StreetName',
-#                     'StreetNamePostType',
-#                     'StreetNamePostDirectional',
-#                     'StreetNamePostModifier']
-#
-#     paravalues = [aliasStree[x] for x in paramkeylist]  # list Comprehension
-#
-#     try:
-#         cursor = connectdb(str(DB.POSTGRES)).cursor()
-#         cursor.execute(sql, paravalues)
-#         con.commit()
-#         print("AliasStree Updated")
-#     except psycopg2.Error as e:
-#         print(e.pgerror)
-#     finally:
-#         con.close()
-#
-#
-# def AddAliasCenterlineParameters_Delete(aliasStree):
-#     sql = 'Delete from ' + TABLE_Roadalias + """(srcunqid, rsrcunqid, srcofdata, updatedate, effective, expire, apremod, apredir, apretype, apretypesep, astrname, aposttype, apostdir, apostmod )
-#         values(ST_SetSRID(ST_GeomFromGML(%s),4326),%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);"""
-#
-#     paramkeylist = ['RoadSegmentUniqueId',
-#                     'SourceofData',
-#                     'DateUpdated',
-#                     'EffectiveDate',
-#                     'ExpirationDate',
-#                     'StreetNamePreModifier',
-#                     'StreetNamePreDirectional',
-#                     'StreetNamePreType',
-#                     'StreetNamePreTypeSeparator'
-#                     'StreetName',
-#                     'StreetNamePostType',
-#                     'StreetNamePostDirectional',
-#                     'StreetNamePostModifier']
-#
-#     paravalues = [aliasStree[x] for x in paramkeylist]  # list Comprehension
-#
-#     try:
-#         cursor = connectdb(str(DB.POSTGRES)).cursor()
-#         cursor.execute(sql, paravalues)
-#         con.commit()
-#         print("AliasStree Delete")
-#     except psycopg2.Error as e:
-#         print(e.pgerror)
-#     finally:
-#         con.close()
-#         # ---------------------------------------------------------------
 
 
-# -----------------validation-------
 
 def check_mandatory_fields(transaction_data, table_name):
     mandatory_check_flag = True

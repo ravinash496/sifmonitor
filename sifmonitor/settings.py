@@ -1,5 +1,4 @@
 import json
-import logging
 
 CREDENTIAL_FILE = 'connection.json'
 
