@@ -1,10 +1,12 @@
 
 import sqlalchemy
 from sqlalchemy import *
+from sqlalchemy.orm import sessionmaker, scoped_session
 import json
 import settings
 
-CREDENTIAL_FILE = 'connection2.json'
+CREDENTIAL_FILE = 'connection.json'
+
 
 class DB:
     def __init__(self, database):
@@ -13,18 +15,30 @@ class DB:
         self.credentials = settings.read_json(json_file=CREDENTIAL_FILE).get(self.database)
 
     # Insert/Update the table
-    def transaction_sql(self, sql, action_statement):
+    def transaction_sql(self, sql, action_statement, commit_flag=None):
         engine = self.connect() 
+        #connection = engine.connect()
+        #trans = connection.begin()
         try:
-            with engine.connect() as con:
-                con.execute(sql)
-                print(action_statement)
+            #connection.execute(sql)
+            Session = sessionmaker()
+            sess = Session(bind=engine)
+            sess.execute(sql)
+            sess.commit()
+
+            # If commit_flag is set then only commit
+            if commit_flag:
+                sess.commit()
+            print(action_statement)
+        
         except Exception as error:
             print(error)
-            
-    def get_centerline():
-        pass
-       
+            #trans.rollback()
+        # finally:
+        #    connection.close()
+        # return trans
+
+
     def get_replicationfeeds(self):
         engine = self.connect() 
         try:
@@ -35,34 +49,36 @@ class DB:
                 return feed
         except Exception as error:
             print(error)
-        
-    
-    def update_last_processed(self, timestamp_update_date, previous_time_stamp):
+
+
+    def update_last_processed(self, timestamp_update_date, previous_time_stamp, item_id):
         """Update the replicationFeed updatelastprocessed based on XML"""
         engine = self.connect()
         try:
             with engine.connect() as con:
-                sql = """update replicationfeeds SET lastupdateprocesed = '{}' WHERE lastupdateprocesed = '{}'; """.format(timestamp_update_date,     
-        previous_time_stamp)
+                sql = """update replicationfeeds SET lastupdateprocesed = '{}' WHERE lastupdateprocesed = '{}' AND id = '{}'; """.format(timestamp_update_date, previous_time_stamp, item_id)
                 con.execute(sql)
                 print("UPDATE SUCCESS: replicationfeed `lastupdateprocesed` values was updated from `{}` to `{}`".format(previous_time_stamp,        timestamp_update_date)) 
         except Exception as error:
             print(error)
+
     
-    
-    def get_service_url_layer_mapping(transaction_data):
+    def get_service_urn_layer_mapping(self, transaction_data):
         table_name = "serviceurnlayermapping"
-        key = transaction_data['Insert'][('Insert', 'ServiceBoundary')].get('ServiceURN')
+        transaction_type = list(transaction_data.keys())[0]
+        table_map_type = list(transaction_data[transaction_type].keys())[0]
+        key = transaction_data[transaction_type][table_map_type].get('ServiceURN')
         engine = self.connect()
         try:
             with engine.connect() as con:
                 sql = "select layername from {} where serviceurn = '{}';".format(table_name, key)
                 res = con.execute(sql)
-                result = res.fetchone()[0] # result will vbe police | fire | sheriiff
+                result = res.fetchone()[0]  # result will vbe police | fire | sheriff
                 return result
         except Exception as error:
             print(error)
 
+    
     def connect(self):
         '''Returns a connection and a metadata object'''
         # We connect with the help of the PostgreSQL URL
@@ -73,9 +89,9 @@ class DB:
         password = self.credentials.get('password')
         host = self.credentials.get('host')
         port = self.credentials.get('port')
-        db = self.credentials.get('db')
-        
+        db = self.credentials.get('db')        
         url = url.format(user, password, host, port, db)
+        
         engine = create_engine(url)
         # The return value of create_engine() is our connection object
         return engine
