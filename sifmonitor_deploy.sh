@@ -20,8 +20,8 @@ if [ -z "$TRAVIS_PULL_REQUEST" ] || [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
     docker push "$REMOTE_IMAGE_URL:latest"
     echo "Pushed $IMAGE_NAME:latest"
 
-    echo "Deploying $TRAVIS_BRANCH on $TASK_DEFINITION"
-    ./ecs-deploy.sh -c $CLUSTER -n $SERVICE -i $REMOTE_IMAGE_URL:latest -D 1 --max-definitions 4 -t 120
+    # echo "Deploying $TRAVIS_BRANCH on $TASK_DEFINITION"
+    # ./ecs-deploy.sh -c $CLUSTER -n $SERVICE -i $REMOTE_IMAGE_URL:latest -D 1 --max-definitions 4 -t 120
     exit $?
   else
     echo "Skipping deploy because branch is not 'master'"

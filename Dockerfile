@@ -4,8 +4,6 @@ MAINTAINER GeoComm
 
 RUN echo "deb http://archive.ubuntu.com/ubuntu/ xenial main universe" >> /etc/apt/sources.list && apt-get update
 
-
-
 RUN apt-get install -y tar \
                    git \
                    curl \
@@ -39,18 +37,14 @@ ARG CPLUS_INCLUDE_PATH=/usr/include/gdal
 ARG C_INCLUDE_PATH=/usr/include/gdal
 
 COPY requirements.txt /app/requirements.txt
-COPY server.py /app/server.py
 COPY /sifmonitor /app/sifmonitor
 
 WORKDIR /app
 RUN virtualenv --python python3.6 venv && /bin/bash -c "source ./venv/bin/activate" && ./venv/bin/pip install -r requirements.txt
-
-# Expose ports
-EXPOSE 8080
 
 # Set the default directory where CMD will execute
 WORKDIR /app
 
 # Set the default command to execute
 # when creating a new container
-CMD /bin/bash -c "source ./venv/bin/activate && python server.py"
+CMD ["/bin/bash"]
