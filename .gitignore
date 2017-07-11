@@ -81,7 +81,6 @@ celerybeat-schedule
 # virtualenv
 venv/
 ENV/
-srp-env/
 
 # Spyder project settings
 .spyderproject
@@ -98,6 +97,6 @@ scratch
 # PyCharm
 **/.idea/workspace.xml
 **/.idea/tasks.xml
-
-#Idea
-.idea/*
+**/.idea/lostservice.iml
+**/.idea/misc.xml
+.idea/
