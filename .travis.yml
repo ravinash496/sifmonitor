@@ -1,0 +1,36 @@
+language: python
+python:
+- '3.6'
+branches:
+  only:
+  - master
+sudo: required
+env:
+  global:
+  - CPLUS_INCLUDE_PATH=/usr/include/gdal
+  - C_INCLUDE_PATH=/usr/include/gdal
+  - AWS_DEFAULT_REGION=us-west-2
+  - IMAGE_NAME=spatialrouter/sifmonitor
+  - REMOTE_IMAGE_URL=709177336629.dkr.ecr.us-west-2.amazonaws.com/spatialrouter/sifmonitor
+  - secure: XbSWzAxxZA+9/MIsAhlqHuJJaYVNesstOWq8pYk6h23iC2r/0qwYsiHisNCAN+unIJxNv3F2VmKxmZGiudEsuYuTaKg/AXH5tmkY13y33IRCi1uUSgJ+Fhaj53WYz86pyKfPY8osEpds9M7Y7dFxhEcZ/5ogqDPF56rNS3mZ4ix35a+PtFJ2s8dMd407AR21NKvtTUVtmwz6fzontlo2PRuBnH3SO3IeZ2ZPjD6wnXnSqglX0OVQQ9BnxX2xUeafcV9IY1VGruWpXG6UwahpGfghw8WMnROXnSomUjY2WOq2WeBzAxKSrccPYnDZiMzwncE8H4qmbTDpVPWZsMI8sgthEXuCAZce377lnNlOf13baXftDOtYmHhFflpFEhcx3UL2pt4HoZJwkMcT7IyqRwv798cCIc0HVFoTCrHbr4umMw6BzHvEc7sLtFbmPKjI2jSioMnrYG6IitNv66orbrgo3NUzkSr3FUSD9LogVI8Iu+V56bwFww7EW93mzu55t0YUXF2PLy6FT7abvCPs8ijTm+dcUeGDtdDLyR9FTTKPn9hl6vFuOPxrlCrsRNiO6Ds3lkZFrojvpH8+Rr55HkZbfaXHzkr4Y/DUsF4Isd1102Xidrku9KpgUUSwfo+ynJcxYTYHpjxE8gpBAVK4iesqlMsZfh91opRlqwzQcPA=
+  - secure: Y69JJC8EtH1UbSzrYrxktWOimI3BsBAcxBsWw/CVKr3tUIDAZLwJ35+jpGXma7+ZN7e0GUMF4PpnoPwNaJ8SioY4fB3LmWgYSvn8VqI0drhETzm3eGkvF0qntBSXX9pxu6jW38Qdj3i9fQ822jLWfPu4+atyVJbVQBtmRSqvg9e/EnzWGJXCcKbBSUb4c76PLLLQj4FyuinrJbRCQ5oJhOg2TGL79S9cqiHYzazPn41CCb6Zy6Px0NBbeNJAI1o5hqA+WmjAav1v1yqipZNrVknrv3WnKfoD8M+hW/hfBqy8u2V1GPFdBxWN2HeqvXrUOpKk9C5s0gPATtcNlkgPRsB+U8vdQSSUExwa8ePQ+mIhAOpJhCax/I+MRhbWuVmwiITeWNHTUjuQHuM0jwkrTqt/dy1/RDhVy82Il2I3+RDgvERmDyZ+xJ+KFFL3uBTbwigDZgztfD++uiTQxCcQp8vh2ME994GTmvfDMxyyzVbM8Guect+C25LpXxN8jxkAMCD2TxzoI+SyJf6xFKXkxFLdeopm6Q2lhTjvW32VkzSg11N01QvZJs/ehSdG3Z7lXxJJcLAIdaMy0GeBOx44HErp+FICrYz7a/EdGzWW5Ua4ajyS4FfrrPWNDGQANImfTf+J0rEV8yHI3Z9elwS7XA4LZ1y8YSbX4n2mpsFYaR8=
+services:
+- docker
+script:
+- pytest --cov=sifmonitor ./tests/test_*
+install:
+- pip install -r requirements.txt
+- pip install coverage
+- pip install pytest-cov
+- pip install awscli
+before_install:
+- sudo add-apt-repository -y ppa:ubuntugis/ppa -y
+- sudo apt-get update -q
+- sudo apt-get install -y gdal-bin libgdal-dev -y
+- chmod +x ./sifmonitor_deploy.sh
+- chmod +x ./ecs-deploy.sh
+after_success:
+- coverage report
+- "./sifmonitor_deploy.sh"
+notifications:
+  webhooks: https://outlook.office.com/webhook/8e85e59c-da42-4a8e-ad98-a7f0173b2a0e@ba05d72b-83fc-45fc-873b-b2841e0752de/TravisCI/a0a34daa96724c4cb6309283da957e6a/56b9b902-14c4-4a02-8944-45059ec4524c

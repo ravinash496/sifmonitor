@@ -5,15 +5,18 @@ from datetime import datetime
 import psycopg2
 # from numpy.linalg.tests.test_linalg import a
 import sqlalchemy
+from datetime import datetime
+from numpy.linalg.tests.test_linalg import a
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session
-
 import settings
 import transaction_mapper
 from logger_settings import *
 
 CREDENTIAL_FILE = 'connection.json'
 xml_log_history = "provisioninghistory.json"
+PG_CREDENTIAL_FILE = 'pg_connection.json'
+transactions_file = 'transactions_file.txt'
 
 
 def read_transactions():
@@ -121,7 +124,7 @@ class DB:
 
     # Get the replicationfeed values from the replicationfeed table in postgres
     def get_replicationfeeds(self):
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
+        credentials = settings.read_json(settings.PG_CREDENTIAL_FILE).get('postgres')
         engine = self.connect(credentials)
         try:
             with engine.connect() as con:
@@ -136,7 +139,6 @@ class DB:
         except Exception as error:
             logger.error(error)
             exit()
-
 
     def update_last_processed(self, timestamp_update_date, previous_time_stamp, item_id):
         """Update the replicationFeed updatelastprocessed based on XML"""
@@ -158,7 +160,7 @@ class DB:
 
     def get_service_urn_layer_mapping(self, transaction_data):
         """Get the service urn layer mapping for a specififed table/service"""
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
+        credentials = settings.read_json(settings.PG_CREDENTIAL_FILE).get('postgres')
         table_name = "serviceurnlayermapping"
         transaction_type = list(transaction_data.keys())[0]
         table_map_type = list(transaction_data[transaction_type].keys())[0]
@@ -172,7 +174,6 @@ class DB:
                 return result
         except Exception as error:
             logger.error(error)
-
 
     def connect(self, credentials):
         """Returns a connection and a metadata object"""
@@ -191,7 +192,6 @@ class DB:
         except Exception as error:
             logger.error(error)
             exit()
-
 
     def log_modification_history(self):
         """Log the modification of xml entires in a history table and provisioninghistory.json file for tracing back the changes

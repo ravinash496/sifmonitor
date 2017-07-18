@@ -57,7 +57,7 @@ def create_sequences_public():
             os.remove(settings.application_flag)
         except OSError as ose:
             pass
-            #logger.error(ose)
+            # logger.error(ose)
         logger.error(error)
         exit()
 
@@ -67,10 +67,10 @@ def download_atom_feed():
      values from replication feed table
     :return: None 
     """
-    logger.info("******** START download_atom_feed() *******")   
+    logger.info("******** START download_atom_feed() *******")
     # Create a file for application status flag
     open(settings.application_flag, 'w').close()
-    
+
     global ns1
     global url
     global fp
@@ -90,7 +90,7 @@ def download_atom_feed():
     except urllib.error.HTTPError as error:
         logger.error("\nurl field {} issue in `replicationfeed table`!!!:  {}".format(url, error))
         exit()
-    
+
     except Exception as error:
         try:
             os.remove(settings.application_flag)
@@ -151,15 +151,15 @@ def download_atom_feed():
             timestamp_update_date = xml_update_timestamp.split('Z')[0]
             db = postgresdb.DB()
             db.update_last_processed(timestamp_update_date,
-                                           lastupdateprocessed,
-                                           item_id)
-    
+                                     lastupdateprocessed,
+                                     item_id)
+
     elif transaction_flag and not mandatory_field_check:
         try:
             os.remove(settings.application_flag)
         except OSError as ose:
             pass
-         
+
         logger.error("Transaction Aborted, nothing to update!!!")
     else:
         logger.info("No changes in XML, nothing to update!!!")
@@ -169,6 +169,7 @@ def download_atom_feed():
     except OSError as ose:
         pass
     logger.info("******** END download_atom_feed() *******")
+
 
 def parse_create_entry(previousupdatedate):
     """
@@ -212,7 +213,7 @@ def parse_create_entry(previousupdatedate):
                     # matching with DB update and go to next entry tag
                     if (updatedTime == previousupdatedate.replace(tzinfo=None)
                         ) and (updatedTimeelement == previousupdatedate.replace(
-                                                                                tzinfo=None)):
+                        tzinfo=None)):
                         update_list.pop(1)
                         updatedflag = False
                         continue
@@ -237,7 +238,7 @@ def parse_create_entry(previousupdatedate):
                 alias_street_segment = 0
                 dataDict = {}
                 transaction_flag = True
-                
+
                 for e in element:
                     # browse through the content to get the transaction
                     for content in e:
@@ -274,7 +275,8 @@ def parse_create_entry(previousupdatedate):
                                             elif alias_street_segment > 1 and etree.QName(
                                                     data.tag).localname in schema_mapper.skip_fields:
                                                 continue
-                                            elif alias_address > 1 and etree.QName(data.tag).localname in schema_mapper.skip_fields:
+                                            elif alias_address > 1 and etree.QName(
+                                                    data.tag).localname in schema_mapper.skip_fields:
                                                 continue
                                             dataDict[etree.QName(data.tag).localname] = data.text
                                         transactiondict[etree.QName(transactiontp.tag).localname] = {(etree.QName(
@@ -311,7 +313,7 @@ def parse_create_entry(previousupdatedate):
             os.remove(settings.application_flag)
         except OSError as ose:
             pass
-            #logger.error(ose)
+            # logger.error(ose)
         exit()
 
 
@@ -337,7 +339,7 @@ def transaction(transactiondict, transactiontype):
             os.remove(settings.application_flag)
         except OSError as ose:
             pass
-            #logger.error(ose)
+            # logger.error(ose)
         logger.error("Transaction Mapper Error: ", error)
     return commit_flag
 
@@ -551,7 +553,8 @@ def copy_tables_schema():
     set_path_sql = """set search_path to public, active, provisioning;"""
     schema_sql = ""
     for table_name in schema_tables:
-        schema_sql += """CREATE TABLE provisioning.{} (LIKE active.{} INCLUDING  CONSTRAINTS INCLUDING INDEXES INCLUDING DEFAULTS); INSERT INTO provisioning.{} SELECT * FROM active.{};""".format(table_name, table_name, table_name, table_name, table_name)
+        schema_sql += """CREATE TABLE provisioning.{} (LIKE active.{} INCLUDING  CONSTRAINTS INCLUDING INDEXES INCLUDING DEFAULTS); INSERT INTO provisioning.{} SELECT * FROM active.{};""".format(
+            table_name, table_name, table_name, table_name, table_name)
     db = postgresdb.DB()
     databases = postgresdb.get_databases()
     logger.info("Copy tables and data from active to new provisioning")
@@ -565,6 +568,7 @@ def copy_tables_schema():
         except Exception as error:
             logger.error(error)
             exit()
+
 
 def run_thread_instance(function_name, arguments):
     """
@@ -601,4 +605,4 @@ def schedule_thread():
 
 if __name__ == "__main__":
     schedule_thread()  # Schedule as a thread which runs as a backend job
-    #download_atom_feed()
+    # download_atom_feed()
