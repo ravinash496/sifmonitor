@@ -12,10 +12,11 @@ import postgresdb
 import schema_mapper
 
 from logger_settings import *
-
+application_flag = 'application_flag.txt'
 transactions_file = 'transactions_file.txt'
 global TRANSACTION_RESULTS
 TRANSACTION_RESULTS = {}
+
 
 def get_paravalues(paramkeylist, table_values):
     """
@@ -47,12 +48,12 @@ def mapcenterline_si_to_udm_insert(transaction_data, transaction_type='Insert'):
     table_values = list(transaction_data.get(transaction_type).values())[0]
     table_map = schema_mapper.get_table_fields(table_name)
     paramkeylist = table_map.get('paramkeylist')
-    # modified_res = table_name + ":" + transaction_type
+
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         # get paravalues for the table
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """Insert into provisioning.{} (wkb_geometry, gcunqid, srcofdata, premod, predir, pretype, pretypesep, strname, posttype, postdir, postmod, addrngprel, addrngprer, fromaddl, fromaddr, toaddl, toaddr,parityl,parityr, updatedate, effective, expire, countryl, countryr, statel, stater, countyl, countyr, addcodel, addcoder, incmunil, incmunir, uninccomml, uninccommr, nbrhdcommr, nbrhdcomml,roadclass, speedlimit, oneway, postcomml, postcommr, zipcodel, zipcoder, esnl, esnr ) values(ST_SetSRID(ST_GeomFromGML('{}'),4326),'{}','{}','{}','{}','{}', '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}', '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}', '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');""".format(
+        sql = 'set search_path to provisioning, public, active; Insert into provisioning.' + table_name + """(ogc_fid, wkb_geometry, gcunqid, srcofdata, premod, predir, pretype, pretypesep, strname, posttype, postdir, postmod, addrngprel, addrngprer, fromaddl, fromaddr, toaddl, toaddr,parityl,parityr, updatedate, effective, expire, countryl, countryr, statel, stater, countyl, countyr, addcodel, addcoder, incmunil, incmunir, uninccomml, uninccommr, nbrhdcommr, nbrhdcomml,roadclass, speedlimit, oneway, postcomml, postcommr, zipcodel, zipcoder, esnl, esnr ) values(nextval('{}_ogc_fid_seq'), ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}','{}', '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}', '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}', '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');""".format(
             table_name, paravalues[0], paravalues[1], paravalues[2], paravalues[3], paravalues[4], paravalues[5],
             paravalues[6], paravalues[7], paravalues[8], paravalues[9], paravalues[10], paravalues[11], paravalues[12],
             paravalues[13], paravalues[14], paravalues[15], paravalues[16], paravalues[17], paravalues[18],
@@ -62,7 +63,6 @@ def mapcenterline_si_to_udm_insert(transaction_data, transaction_type='Insert'):
             paravalues[37], paravalues[38], paravalues[39], paravalues[40], paravalues[41], paravalues[42],
             paravalues[43], paravalues[44])
         sql = sql.replace("'None'", 'NULL')
-        #action_statement = "UniqueId {} :: Insertion successful for {} !!!".format(paravalues[1], table_name)
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -92,7 +92,7 @@ def mapcenterline_si_to_udm_update(transaction_data, transaction_type='Update'):
 
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """UPDATE roadcenterline SET wkb_geometry = ST_Multi(ST_SetSRID(ST_GeomFromGML(
+        sql = """UPDATE provisioning.roadcenterline SET wkb_geometry = ST_Multi(ST_SetSRID(ST_GeomFromGML(
         '{}'),4326)), gcunqid = '{}', srcofdata = '{}', premod = '{}',
          predir = '{}', pretype = '{}', pretypesep = '{}', strname = '{}',
          posttype = '{}', postdir = '{}', postmod = '{}', addrngprel = '{}',
@@ -144,7 +144,7 @@ def mapcenterline_si_to_udm_delete(transaction_data, transaction_type='Delete'):
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
 
-    sql = "Delete from {} where gcunqid = '{}';".format(
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(
         table_name, paravalues[0])
     # action_statement = "Deletion successful for {}!!!".format(table_name)
     if TRANSACTION_RESULTS.get(table_name):
@@ -175,14 +175,14 @@ def mapcountyboundary_si_to_udm_insert(transaction_data,
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = 'Insert into ' + table_name + """(wkb_geometry, gcunqid,
+        sql = 'set search_path to public, active; Insert into provisioning.' + table_name + """(ogc_fid, wkb_geometry, gcunqid,
                srcofdata, updatedate, effective, expire, country, state,
                county)
-               values(ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}',
-               '{}','{}','{}','{}','{}');""".format(
-            paravalues[0], paravalues[1], paravalues[2], paravalues[3],
-            paravalues[4], paravalues[5], paravalues[6], paravalues[7],
-            paravalues[8])
+               values(nextval('{}_ogc_fid_seq'), ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}',
+               '{}','{}','{}','{}','{}');""".format(table_name,
+                                                    paravalues[0], paravalues[1], paravalues[2], paravalues[3],
+                                                    paravalues[4], paravalues[5], paravalues[6], paravalues[7],
+                                                    paravalues[8])
         sql = sql.replace("'None'", 'NULL')
         # action_statement = "Insertion successful for {}!!!".format(table_name)
         if TRANSACTION_RESULTS.get(table_name):
@@ -215,7 +215,7 @@ def mapcountyboundary_si_to_udm_update(transaction_data,
 
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """UPDATE countyboundary SET wkb_geometry = ST_Multi(ST_SetSRID(
+        sql = """UPDATE provisioning.countyboundary SET wkb_geometry = ST_Multi(ST_SetSRID(
         ST_GeomFromGML('{}'),4326)), gcunqid = '{}', srcofdata = '{}',
         updatedate = '{}', effective = '{}', expire = '{}', country = '{}',
         state = '{}', county = '{}' """.format(
@@ -249,7 +249,7 @@ def mapcountyboundary_si_to_udm_delete(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
-    sql = "Delete from {} where gcunqid = '{}';".format(
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(
         table_name, paravalues[0])
     # action_statement = "Deletion successful for {}!!!".format(table_name)
     if TRANSACTION_RESULTS.get(table_name):
@@ -276,31 +276,31 @@ def mapsitestructure_si_to_udm_insert(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     table_map = schema_mapper.get_table_fields(table_name)
     paramkeylist = table_map.get('paramkeylist')
+
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = 'Insert into ' + table_name + """(wkb_geometry, gcunqid,
+        sql = 'set search_path to public, active; Insert into provisioning.' + table_name + """(ogc_fid, wkb_geometry, gcunqid,
         srcofdata, updatedate, effective, expire,country, state, county,
         addcode, incmuni, uninccomm, nbrhdcomm, premod, predir, pretype,
         pretypesep, strname,posttype, postdir, postmod, addnumpre, addnum,
         addnumsuf, milepost, esn, postcomm, zipcode, building,floor, unit,
         room, seat, landmark, location, placetype, adddatauri)
-        values(ST_SetSRID(ST_GeomFromGML('{}'),4326),'{}','{}','{}','{}','{}',
+        values(nextval('{}_ogc_fid_seq'), ST_SetSRID(ST_GeomFromGML('{}'),4326),'{}','{}','{}','{}','{}',
         '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}',
         '{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}',
-        '{}','{}','{}');""".format(
-            paravalues[0], paravalues[1], paravalues[2], paravalues[3],
-            paravalues[4], paravalues[5], paravalues[6], paravalues[7],
-            paravalues[8], paravalues[9], paravalues[10], paravalues[11],
-            paravalues[12], paravalues[13], paravalues[14], paravalues[15],
-            paravalues[16], paravalues[17], paravalues[18], paravalues[19],
-            paravalues[20], paravalues[21], paravalues[22], paravalues[23],
-            paravalues[24], paravalues[25], paravalues[26], paravalues[27],
-            paravalues[28], paravalues[29], paravalues[30], paravalues[31],
-            paravalues[32], paravalues[33], paravalues[34], paravalues[35],
-            paravalues[36])
+        '{}','{}','{}');""".format(table_name,
+                                   paravalues[0], paravalues[1], paravalues[2], paravalues[3],
+                                   paravalues[4], paravalues[5], paravalues[6], paravalues[7],
+                                   paravalues[8], paravalues[9], paravalues[10], paravalues[11],
+                                   paravalues[12], paravalues[13], paravalues[14], paravalues[15],
+                                   paravalues[16], paravalues[17], paravalues[18], paravalues[19],
+                                   paravalues[20], paravalues[21], paravalues[22], paravalues[23],
+                                   paravalues[24], paravalues[25], paravalues[26], paravalues[27],
+                                   paravalues[28], paravalues[29], paravalues[30], paravalues[31],
+                                   paravalues[32], paravalues[33], paravalues[34], paravalues[35],
+                                   paravalues[36])
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Insertion successful for SiteStructure!!!"
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -327,11 +327,12 @@ def mapsitestructure_si_to_udm_update(transaction_data,
     gcunqid = table_values.get('UniqueId')
     table_map = schema_mapper.get_table_fields(table_name)
     paramkeylist = table_map.get('paramkeylist')
+    import pdb;pdb.set_trace()
     mandatory_check = check_mandatory_fields(table_values, table_name)
 
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """UPDATE ssap SET wkb_geometry = ST_SetSRID(ST_GeomFromGML(
+        sql = """UPDATE provisioning.ssap SET wkb_geometry = ST_SetSRID(ST_GeomFromGML(
         '{}'),4326), gcunqid = '{}' , srcofdata = '{}' , updatedate = '{}' ,
         effective = '{}' , expire = '{}' ,country = '{}' , state = '{}' ,
         county = '{}' , addcode = '{}' , incmuni = '{}' , uninccomm = '{}' ,
@@ -379,7 +380,7 @@ def mapsitestructure_si_to_udm_delete(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
-    sql = "Delete from {} where gcunqid = '{}';".format(
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(
         table_name, paravalues[0])
     # action_statement = "Deletion successful for SiteStructure!!!"
     if TRANSACTION_RESULTS.get(table_name):
@@ -410,16 +411,15 @@ def mapunincorporatedboundary_si_to_udm_insert(transaction_data,
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = 'Insert into ' + table_name + """(wkb_geometry, gcunqid,
+        sql = 'set search_path to public, active; Insert into provisioning.' + table_name + """(ogc_fid, wkb_geometry, gcunqid,
                srcofdata, updatedate, effective, expire, country, state,
                county, addcode, uninccomm)
-               values(ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}',
-               '{}','{}','{}','{}','{}','{}');""".format(
-            paravalues[0], paravalues[1], paravalues[2], paravalues[3],
-            paravalues[4], paravalues[5], paravalues[6], paravalues[7],
-            paravalues[8], paravalues[9], paravalues[10])
+               values(nextval('{}_ogc_fid_seq'), ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}',
+               '{}','{}','{}','{}','{}','{}');""".format(table_name,
+                                                         paravalues[0], paravalues[1], paravalues[2], paravalues[3],
+                                                         paravalues[4], paravalues[5], paravalues[6], paravalues[7],
+                                                         paravalues[8], paravalues[9], paravalues[10])
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Insertion successful for {}!!!".format(table_name)
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -450,7 +450,7 @@ def mapunincorporatedboundary_si_to_udm_update(transaction_data,
 
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """UPDATE uninccommboundary SET wkb_geometry = ST_Multi(ST_SetSRID(
+        sql = """UPDATE provisioning.uninccommboundary SET wkb_geometry = ST_Multi(ST_SetSRID(
         ST_GeomFromGML('{}'),4326)), gcunqid = '{}', srcofdata = '{}',
         updatedate = '{}', effective = '{}', expire = '{}', country = '{}',
         state = '{}', county = '{}', addcode = '{}',
@@ -486,7 +486,7 @@ def mapunincorporatedboundary_si_to_udm_delete(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
-    sql = "Delete from {} where gcunqid = '{}';".format(table_name,
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(table_name,
                                                         paravalues[0])
     # action_statement = "Deletion successful for uninccommboundary!!!"
     if TRANSACTION_RESULTS.get(table_name):
@@ -517,16 +517,15 @@ def mapincorporatedboundary_si_to_udm_insert(transaction_data,
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = 'Insert into ' + table_name + """(wkb_geometry, gcunqid,
+        sql = 'set search_path to public, active; Insert into provisioning.' + table_name + """(ogc_fid, wkb_geometry, gcunqid,
                srcofdata, updatedate, effective, expire, country, state,
                county, addcode, muni)
-               values(ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}',
-               '{}','{}','{}','{}','{}','{}');""".format(
-            paravalues[0], paravalues[1], paravalues[2], paravalues[3],
-            paravalues[4], paravalues[5], paravalues[6], paravalues[7],
-            paravalues[8], paravalues[9], paravalues[10])
+               values(nextval('{}_ogc_fid_seq'), ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}',
+               '{}','{}','{}','{}','{}','{}');""".format(table_name,
+                                                         paravalues[0], paravalues[1], paravalues[2], paravalues[3],
+                                                         paravalues[4], paravalues[5], paravalues[6], paravalues[7],
+                                                         paravalues[8], paravalues[9], paravalues[10])
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Insertion successful for {}!!!".format(table_name)
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -557,7 +556,7 @@ def mapincorporatedboundary_si_to_udm_update(transaction_data,
 
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """ UPDATE incmunicipalboundary SET wkb_geometry = ST_multi(ST_SetSRID(
+        sql = """ UPDATE provisioning.incmunicipalboundary SET wkb_geometry = ST_multi(ST_SetSRID(
         ST_GeomFromGML('{}'),4326)), gcunqid = '{}', srcofdata = '{}',
         updatedate = '{}', effective = '{}', expire = '{}', country = '{}',
         state = '{}', county = '{}' , addcode = '{}', muni = '{}' """.format(
@@ -593,7 +592,7 @@ def mapincorporatedboundary_si_to_udm_delete(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
-    sql = "Delete from {} where gcunqid = '{}';".format(
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(
         table_name, paravalues[0])
     # action_statement = "Deletion successful for IncorporatedMunicipalityBoundary!!!"
     if TRANSACTION_RESULTS.get(table_name):
@@ -623,12 +622,12 @@ def mapstateboundary_si_to_udm_insert(transaction_data,
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = 'Insert into ' + table_name + """(wkb_geometry, gcunqid,
+        sql = 'set search_path to public, active; Insert into provisioning.' + table_name + """(ogc_fid, wkb_geometry, gcunqid,
         srcofdata, updatedate, effective, expire, country, state)
-        values(ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}','{}',
-        '{}','{}');""".format(
-            paravalues[0], paravalues[1], paravalues[2], paravalues[3],
-            paravalues[4], paravalues[5], paravalues[6], paravalues[7])
+        values(nextval('{}_ogc_fid_seq'), ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}','{}',
+        '{}','{}');""".format(table_name,
+                              paravalues[0], paravalues[1], paravalues[2], paravalues[3],
+                              paravalues[4], paravalues[5], paravalues[6], paravalues[7])
         sql = sql.replace("'None'", 'NULL')
         # action_statement = "Insertion successful for {}!!!".format(table_name)
         if TRANSACTION_RESULTS.get(table_name):
@@ -661,7 +660,7 @@ def mapstateboundary_si_to_udm_update(transaction_data, transaction_type='Update
 
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """ UPDATE stateboundary SET wkb_geometry = ST_Multi(ST_SetSRID(
+        sql = """ UPDATE provisioning.stateboundary SET wkb_geometry = ST_Multi(ST_SetSRID(
         ST_GeomFromGML('{}'),4326)), gcunqid = '{}', srcofdata = '{}',
         updatedate = '{}', effective = '{}', expire = '{}', country = '{}',
         state = '{}' """.format(
@@ -695,7 +694,7 @@ def mapstateboundary_si_to_udm_delete(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
-    sql = "Delete from {} where gcunqid = '{}';".format(
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(
         table_name, paravalues[0])
 
     # action_statement = "Deletion successful for {}!!!".format(table_name)
@@ -729,15 +728,18 @@ def mapserviceboundary_si_to_udm_insert(transaction_data,
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = 'Insert into ' + service_table_name + """(wkb_geometry, gcunqid,
+        sql = 'set search_path to public, active; Insert into provisioning. ' + service_table_name + """(ogc_fid, wkb_geometry, gcunqid,
         srcofdata, updatedate, effective, expire, country, state, county,
         agencyid, routeuri, serviceurn, servicenum, vcarduri, displayname)
-        values(ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}','{}',
-        '{}','{}','{}','{}','{}','{}','{}','{}','{}');""".format(
-            paravalues[0], paravalues[1], paravalues[2], paravalues[3],
-            paravalues[4], paravalues[5], paravalues[6], paravalues[7],
-            paravalues[8], paravalues[9], paravalues[10], paravalues[11],
-            paravalues[12], paravalues[13], paravalues[14])
+        values(nextval('{}_ogc_fid_seq'), ST_Multi(ST_SetSRID(ST_GeomFromGML('{}'),4326)),'{}','{}','{}','{}','{}',
+        '{}','{}','{}','{}','{}','{}','{}','{}','{}');""".format(service_table_name,
+                                                                 paravalues[0], paravalues[1], paravalues[2],
+                                                                 paravalues[3],
+                                                                 paravalues[4], paravalues[5], paravalues[6],
+                                                                 paravalues[7],
+                                                                 paravalues[8], paravalues[9], paravalues[10],
+                                                                 paravalues[11],
+                                                                 paravalues[12], paravalues[13], paravalues[14])
         sql = sql.replace("'None'", 'NULL')
         # action_statement = "Insertion of values into {} table successful".format(service_table_name)
         if TRANSACTION_RESULTS.get(table_name):
@@ -772,7 +774,7 @@ def mapserviceboundary_si_to_udm_update(transaction_data,
     mandatory_check = check_mandatory_fields(table_values, table_name)
     if mandatory_check:
         paravalues = get_paravalues(paramkeylist, table_values)
-        sql = """  UPDATE {} SET  wkb_geometry = ST_Multi(ST_SetSRID(
+        sql = """  UPDATE provisioning.{} SET  wkb_geometry = ST_Multi(ST_SetSRID(
         ST_GeomFromGML('{}'),4326)), gcunqid = '{}', srcofdata = '{}',
         updatedate = '{}', effective = '{}', expire = '{}', country = '{}',
         state = '{}', county = '{}', agencyid = '{}', routeuri = '{}',
@@ -812,7 +814,7 @@ def mapserviceboundary_si_to_udm_delete(transaction_data,
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
-    sql = "Delete from {} where gcunqid = '{}';".format(
+    sql = "Delete from provisioning.{} where gcunqid = '{}';".format(
         service_table_name, paravalues[0])
     # action_statement = "Deletion of  values into {} table successfully".format(service_table_name)
     if TRANSACTION_RESULTS.get(service_table_name):
@@ -839,8 +841,7 @@ def check_mandatory_fields(transaction_data, table_name):
     transaction_data_keys = [key.lower()
                              for key in list(transaction_data.keys())]
     table_keys = [key.lower() for key in mandatory_fields]
-    mf_check = len(set(
-        transaction_data_keys) & set(table_keys)) == len(table_keys)
+    mf_check = len(set(transaction_data_keys) & set(table_keys)) == len(table_keys)
     if mf_check:
         for field in transaction_data:
             if not transaction_data.get(field) and (field.lower() in table_keys):

@@ -5,15 +5,72 @@ import urllib.request
 from datetime import datetime
 from lxml import etree
 # User defined Modules
+import os
 import postgresdb
 import transaction_mapper
 import schema_mapper
+import settings
 from logger_settings import *
+
+
+def check_public_sequences():
+    """
+    checks if there are any sequences in public
+    :return: TRUE/False
+    """
+    check_seq_sql = "SELECT * FROM information_schema.sequences WHERE sequence_schema='public';"
+    result = postgresdb.execute_sql(check_seq_sql, fetch=True)
+    return result
+
+
+def create_sequences_public():
+    """
+    If there are no sequences in public, This will create sequences
+    :return: None
+    """
+    db = postgresdb.DB()
+    schema_tables = db.get_all_table_names("provisioning")
+    sequence_sql = ""
+    create_sequence_sql = ""
+    next_val_sql = ""
+    set_path_sql = """set search_path to public, active, provisioning;"""
+    schema_sql = ""
+    for table_name in schema_tables:
+        next_val_sql = ""
+        next_val = ""
+        sequence_sql += "ALTER SEQUENCE {}_ogc_fid_seq SET SCHEMA active;".format(table_name)
+        next_val_sql = set_path_sql + "SELECT last_value FROM provisioning.{}_ogc_fid_seq;".format(table_name)
+        next_val = db.get_nextval(next_val_sql) + 1
+        create_sequence_sql += """CREATE SEQUENCE IF NOT EXISTS public.{}_ogc_fid_seq
+                              INCREMENT 1
+                              MINVALUE 1
+                              MAXVALUE 9223372036854775807
+                              START {}
+                              CACHE 1;
+                              ALTER TABLE public.{}_ogc_fid_seq
+                              OWNER TO postgres;""".format(table_name, next_val, table_name)
+    try:
+        postgresdb.execute_sql(create_sequence_sql)
+        logger.info("Creating public sequences for all tables")
+    except Exception as error:
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
+            # logger.error(ose)
+        logger.error(error)
+        exit()
 
 
 def download_atom_feed():
     """Download the xml file and parse through and check the entry tags. Retrieve
-     values from replication feed table"""
+     values from replication feed table
+    :return: None 
+    """
+    logger.info("******** START download_atom_feed() *******")
+    # Create a file for application status flag
+    open(settings.application_flag, 'w').close()
+
     global ns1
     global url
     global fp
@@ -29,20 +86,30 @@ def download_atom_feed():
             url = feedList[2]
             fp = urllib.request.urlopen(url)
         else:
-            logger.info("No values retrieved for replicationfeed table")
+            logger.warning("No values retrieved for replicationfeed table")
     except urllib.error.HTTPError as error:
         logger.error("\nurl field {} issue in `replicationfeed table`!!!:  {}".format(url, error))
         exit()
+
     except Exception as error:
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
         logger.error("\nERROR in `replicationfeed table`!!!:  {}"
                      .format(error))
         exit()
+
     # Namespaces
     ns1 = {"atom": "http://www.w3.org/2005/Atom",
            "gml": "http://www.opengis.net/gml",
            "georss": "http://www.opengis.net/georss",
            "wfs": "http://www.opengis.org/wfs"}
 
+    # Check if public sequences exist or else create those sequences
+    public_sequences = check_public_sequences()
+    if not public_sequences:
+        create_sequences_public()
     # Parse XML file and validate if there has been any changes to timestamp
     parse_create_entry(lastupdateprocessed)
     if isinstance(mandatory_field_check, tuple) and (False in mandatory_field_check):
@@ -59,25 +126,57 @@ def download_atom_feed():
         # Update the replicationfeeds database value with the timestamp from xml only if this commit flag is True
         # Perform transaction
         db = postgresdb.DB()
-        db.transaction_sql()
+        try:
+            db.transaction_sql()
+        except Exception as error:
+            logger.error(error)
+            try:
+                os.remove(settings.application_flag)
+            except:
+                pass
+        # Update schema and copy schema
+        try:
+            update_schema()
+            copy_tables_schema()
+        except Exception as error:
+            try:
+                os.remove(settings.application_flag)
+            except OSError as ose:
+                pass
+            logger.error(error)
+            exit()
         updatedTime = datetime.strptime(
             xml_update_timestamp, "%Y-%m-%dT%H:%M:%Sz").replace(tzinfo=None)
         if updatedTime > lastupdateprocessed.replace(tzinfo=None):
             timestamp_update_date = xml_update_timestamp.split('Z')[0]
-            postgres = postgresdb.DB()
-            postgres.update_last_processed(timestamp_update_date,
-                                           lastupdateprocessed,
-                                           item_id)
+            db = postgresdb.DB()
+            db.update_last_processed(timestamp_update_date,
+                                     lastupdateprocessed,
+                                     item_id)
 
     elif transaction_flag and not mandatory_field_check:
-        open("transactions_file.txt", 'w').close()
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
+
         logger.error("Transaction Aborted, nothing to update!!!")
     else:
         logger.info("No changes in XML, nothing to update!!!")
+    # Remove application status flag
+    try:
+        os.remove(settings.application_flag)
+    except OSError as ose:
+        pass
+    logger.info("******** END download_atom_feed() *******")
 
 
 def parse_create_entry(previousupdatedate):
-    """Parse the XML and check the necessary entries"""
+    """
+     Parse the XML and check the necessary entries
+    :param previousupdatedate: Last update processed time stamp
+    :return: None
+    """
 
     transactiontype = []
     transactiondict = {}
@@ -114,7 +213,7 @@ def parse_create_entry(previousupdatedate):
                     # matching with DB update and go to next entry tag
                     if (updatedTime == previousupdatedate.replace(tzinfo=None)
                         ) and (updatedTimeelement == previousupdatedate.replace(
-                                                                                tzinfo=None)):
+                        tzinfo=None)):
                         update_list.pop(1)
                         updatedflag = False
                         continue
@@ -139,6 +238,7 @@ def parse_create_entry(previousupdatedate):
                 alias_street_segment = 0
                 dataDict = {}
                 transaction_flag = True
+
                 for e in element:
                     # browse through the content to get the transaction
                     for content in e:
@@ -175,7 +275,8 @@ def parse_create_entry(previousupdatedate):
                                             elif alias_street_segment > 1 and etree.QName(
                                                     data.tag).localname in schema_mapper.skip_fields:
                                                 continue
-                                            elif alias_address > 1 and etree.QName(data.tag).localname in schema_mapper.skip_fields:
+                                            elif alias_address > 1 and etree.QName(
+                                                    data.tag).localname in schema_mapper.skip_fields:
                                                 continue
                                             dataDict[etree.QName(data.tag).localname] = data.text
                                         transactiondict[etree.QName(transactiontp.tag).localname] = {(etree.QName(
@@ -208,11 +309,21 @@ def parse_create_entry(previousupdatedate):
                 continue
     except Exception as error:
         logger.error(error)
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
+            # logger.error(ose)
         exit()
 
 
 def transaction(transactiondict, transactiontype):
-    """Transaction mapper for Insert/Update/Delete"""
+    """
+    Transaction mapper for Insert/Update/Delete
+    :param transactiondict: 
+    :param transactiontype: Insert/Update/Delete
+    :return: None
+    """
     try:
         transaction_types = transactiondict.keys()
         if "Insert" in transaction_types:
@@ -224,15 +335,24 @@ def transaction(transactiondict, transactiontype):
         else:
             logger.error("\nERROR: Unexpected transaction occurred.")
     except Exception as error:
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
+            # logger.error(ose)
         logger.error("Transaction Mapper Error: ", error)
     return commit_flag
 
 
 def transaction_insert(transactiondict, transactiontype):
-    """Insert table mapper for the type of transaction and table"""
+    """
+    Insert table mapper for the type of transaction and table
+    :param transactiondict: 
+    :param transactiontype: Insert/Update/Delete
+    :return: None
+    """
     try:
         transactiondictTypes = list(transactiondict.get('Insert').keys())
-        # table_name = transactiondictTypes[1]
         if ('siadapter', 'Centerlines') in transactiondictTypes:
             mandatory_check = transaction_mapper.mapcenterline_si_to_udm_insert(
                 transactiondict)
@@ -281,7 +401,12 @@ def transaction_insert(transactiondict, transactiontype):
 
 
 def transaction_update(transactiondict, transactiontype):
-    """Update Table mapper for different types of transaction and table"""
+    """
+     Update Table mapper for different types of transaction and table
+    :param transactiondict: 
+    :param transactiontype: Insert/Update/Delete
+    :return: None
+    """
     try:
         transactiondictTypes = list(transactiondict.get('Update').keys())
         if ('siadapter', 'Centerlines') in transactiondictTypes:
@@ -332,7 +457,12 @@ def transaction_update(transactiondict, transactiontype):
 
 
 def transaction_delete(transactiondict, transactiontype):
-    """Delete Table mapper for mapping the transaction type to a table"""
+    """
+    Delete Table mapper for mapping the transaction type to a table
+    :param transactiondict: 
+    :param transactiontype: Insert/Update/Delete
+    :return: None
+    """
     try:
         transactiondictTypes = list(transactiondict.get('Delete').keys())
         if ('siadapter', 'Centerlines') in transactiondictTypes:
@@ -382,22 +512,97 @@ def transaction_delete(transactiondict, transactiontype):
     return mandatory_check
 
 
+def update_schema():
+    """
+    Rename schema from active to provisioning and vice versa
+    Drop provisioning cascade and recreate
+    :return: None
+    """
+    db = postgresdb.DB()
+    schema_tables = db.get_all_table_names("provisioning")
+    sequence_sql = ""
+    for table_name in schema_tables:
+        sequence_sql += "ALTER SEQUENCE {}_ogc_fid_seq SET SCHEMA provisioning;".format(table_name)
+
+    sql = """ALTER SCHEMA active RENAME TO bogus;
+             ALTER SCHEMA provisioning RENAME TO active; 
+             ALTER SCHEMA bogus RENAME TO provisioning;
+             DROP SCHEMA provisioning CASCADE;
+             CREATE SCHEMA provisioning;"""
+
+    databases = postgresdb.get_databases()
+    logger.info("Rename schema from active to provisioning and vice versa")
+    for database in databases:
+        credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+        engine = db.connect(credentials)
+        try:
+            with engine.connect() as con:
+                con.execute(sql)
+        except Exception as error:
+            logger.error(error)
+            exit()
+
+
+def copy_tables_schema():
+    """
+    Copy tables and data from active to new provisioning
+    :return: None
+    """
+    db = postgresdb.DB()
+    schema_tables = db.get_all_table_names("active")
+    set_path_sql = """set search_path to public, active, provisioning;"""
+    schema_sql = ""
+    for table_name in schema_tables:
+        schema_sql += """CREATE TABLE provisioning.{} (LIKE active.{} INCLUDING  CONSTRAINTS INCLUDING INDEXES INCLUDING DEFAULTS); INSERT INTO provisioning.{} SELECT * FROM active.{};""".format(
+            table_name, table_name, table_name, table_name, table_name)
+    db = postgresdb.DB()
+    databases = postgresdb.get_databases()
+    logger.info("Copy tables and data from active to new provisioning")
+    for database in databases:
+        credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+        engine = db.connect(credentials)
+        try:
+            with engine.connect() as con:
+                con.execute(set_path_sql)
+                con.execute(schema_sql)
+        except Exception as error:
+            logger.error(error)
+            exit()
+
+
 def run_thread_instance(function_name, arguments):
+    """
+    :param function_name: 
+    :param arguments: 
+    :return: None
+    """
     t = threading.Thread(target=function_name, args=arguments)
     t.start()
 
 
 def schedule_thread():
-    """Run downloadAtomfeed() every 30 seconds as a seperate thread"""
+    """Run downloadAtomfeed() every 30 seconds as a separate thread"""
     while 1:
         try:
-            t = threading.Thread(target=download_atom_feed)
-            time.sleep(30)
-            t.start()
+            # Check if the application is running, start a new thread only if application flag is set to False or not available
+            # If application flag doesnt exist then only initiate the thread
+            if not os.path.exists(settings.application_flag):
+                transaction_mapper.TRANSACTION_RESULTS = {}
+                t = threading.Thread(target=download_atom_feed)
+                t.start()
+                t.join()
+                time.sleep(settings.THREAD_SLEEP_TIME)
+            else:
+                # Go through scheduled delay for running a thread
+                time.sleep(settings.THREAD_SLEEP_TIME)
         except Exception as error:
             logger.error("Threading Error: ", error)
+            exit()
+        except OSError as ose:
+            os.remove(settings.application_flag)
+            pass
 
 
 if __name__ == "__main__":
-    # schedule_thread()  # Schedule as a thread which runs as a backend job
-    download_atom_feed()
+    schedule_thread()  # Schedule as a thread which runs as a backend job
+    # download_atom_feed()
