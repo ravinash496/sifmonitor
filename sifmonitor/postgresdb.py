@@ -1,22 +1,17 @@
 import json
 import os
 from datetime import datetime
-# import serviceurnlayermapping
 import psycopg2
-# from numpy.linalg.tests.test_linalg import a
 import sqlalchemy
-from datetime import datetime
-from numpy.linalg.tests.test_linalg import a
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session
+
 import settings
 import transaction_mapper
 from logger_settings import *
 
 CREDENTIAL_FILE = 'connection.json'
 xml_log_history = "provisioninghistory.json"
-PG_CREDENTIAL_FILE = 'pg_connection.json'
-transactions_file = 'transactions_file.txt'
 
 
 def read_transactions():
@@ -44,38 +39,40 @@ def get_databases():
 def execute_sql(sql, fetch=None):
     """Execute any general sequence statements and if fetch parameter is provided it returns the output"""
     db = DB()
-    credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
-    engine = db.connect(credentials)
-    try:
-        with engine.connect() as con:
-            res = con.execute(sql)
-            if fetch:
-                result = res.fetchall()
-                return result
-    except Exception as error:
-        logger.error(error)
-        exit()
+    databases = get_databases()
+    for database in databases:
+        credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+        engine = db.connect(credentials)
+        try:
+            with engine.connect() as con:
+                res = con.execute(sql)
+                if fetch:
+                    result = res.fetchall()
+                    return result
+        except Exception as error:
+            logger.error(error)
+            exit()
 
 
 class DB:
     def __init__(self):
         """Python constructor to initialize the object"""
         pass
-        # self.database = database
-        # self.credentials = settings.read_json(json_file=CREDENTIAL_FILE).get(self.database)
 
     def get_nextval(self, next_val_sql):
         """ Get the nextval from sequence for ogc_fid field from public sequences"""
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
-        engine = self.connect(credentials)
-        try:
-            with engine.connect() as con:
-                res = con.execute(next_val_sql)
-                result = res.fetchall()
-                return result[0][0]
+        databases = get_databases()
+        for database in databases:
+            credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            engine = self.connect(credentials)
+            try:
+                with engine.connect() as con:
+                    res = con.execute(next_val_sql)
+                    result = res.fetchall()
+                    return result[0][0]
 
-        except Exception as error:
-            print(error)
+            except Exception as error:
+                print(error)
 
     def get_all_table_names(self, schema_name):
         sql = """SELECT table_name FROM information_schema.tables
@@ -85,8 +82,6 @@ class DB:
         return tables
 
     # Insert/Update the table
-    # def transaction_sql(self, sql, action_statement, commit_flag=None):
-
     def transaction_sql(self):
         """ Execute SQL command for the table
         :return: None
@@ -98,10 +93,10 @@ class DB:
             engine = self.connect(credentials)
             connection = engine.connect()
             trans = connection.begin()
-            # Read transactions from transaction.txt file
+            # Read transactions from transaction data structure
             transactions = "".join(transaction_mapper.TRANSACTION_RESULTS['sql'])
             try:
-                # execute the transactions
+                # Execute the transactions
                 logger.info("Connecting to postgresDB to execute the transactions in provisioning schema")
                 connection.execute(transactions)
                 trans.commit()
@@ -113,7 +108,7 @@ class DB:
                 exit()
             
             except Exception as error:
-                # if we have any connection failure
+                # Rollback incase of any connection failure
                 trans.rollback()
                 transaction_mapper.TRANSACTION_RESULTS = {}
                 logger.error(error)
@@ -124,7 +119,7 @@ class DB:
 
     # Get the replicationfeed values from the replicationfeed table in postgres
     def get_replicationfeeds(self):
-        credentials = settings.read_json(settings.PG_CREDENTIAL_FILE).get('postgres')
+        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
         engine = self.connect(credentials)
         try:
             with engine.connect() as con:
@@ -160,7 +155,7 @@ class DB:
 
     def get_service_urn_layer_mapping(self, transaction_data):
         """Get the service urn layer mapping for a specififed table/service"""
-        credentials = settings.read_json(settings.PG_CREDENTIAL_FILE).get('postgres')
+        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
         table_name = "serviceurnlayermapping"
         transaction_type = list(transaction_data.keys())[0]
         table_map_type = list(transaction_data[transaction_type].keys())[0]
@@ -170,7 +165,7 @@ class DB:
             with engine.connect() as con:
                 sql = "select layername from public.{} where serviceurn = '{}';".format(table_name, key)
                 res = con.execute(sql)
-                result = res.fetchone()[0]  # result will vbe police | fire | sheriff
+                result = res.fetchone()[0]  # result will be police | fire | sheriff
                 return result
         except Exception as error:
             logger.error(error)
@@ -187,7 +182,6 @@ class DB:
         url = url.format(user, password, host, port, db)
         try:
             engine = create_engine(url)
-            # The return value of create_engine() is our connection object
             return engine
         except Exception as error:
             logger.error(error)

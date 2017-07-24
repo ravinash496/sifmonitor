@@ -2,8 +2,8 @@ import json
 
 CREDENTIAL_FILE = 'connection.json'
 application_flag = 'application_flag.txt'
-THREAD_SLEEP_TIME = 20
-PG_CREDENTIAL_FILE = 'pg_connection.json'
+THREAD_SLEEP_TIME = 30
+target_schema = "provisioning"
 
 
 def read_json(credential_file):
