@@ -14,13 +14,13 @@ CREDENTIAL_FILE = 'connection.json'
 xml_log_history = "provisioninghistory.json"
 
 
-def read_transactions():
-    try:
-        with open(transactions_file, 'r') as fp:
-            data = fp.readlines()
-        return data
-    except IOError as ie:
-        logger.error(ie)
+# def read_transactions():
+#     try:
+#         with open(transactions_file, 'r') as fp:
+#             data = fp.readlines()
+#         return data
+#     except IOError as ie:
+#         logger.error(ie)
 
 
 def get_databases():
@@ -59,20 +59,21 @@ class DB:
         """Python constructor to initialize the object"""
         pass
 
-    def get_nextval(self, next_val_sql):
-        """ Get the nextval from sequence for ogc_fid field from public sequences"""
+    def get_lastval(self, last_val_sql):
+        """ Get the lastval from sequence for ogc_fid field from public sequences"""
         databases = get_databases()
         for database in databases:
             credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
             engine = self.connect(credentials)
             try:
                 with engine.connect() as con:
-                    res = con.execute(next_val_sql)
+                    res = con.execute(last_val_sql)
                     result = res.fetchall()
                     return result[0][0]
 
             except Exception as error:
-                print(error)
+                logger.error(error)
+                os.remove(settings.application_flag)
 
     def get_all_table_names(self, schema_name):
         sql = """SELECT table_name FROM information_schema.tables

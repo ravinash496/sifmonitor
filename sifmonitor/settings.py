@@ -2,7 +2,7 @@ import json
 
 CREDENTIAL_FILE = 'connection.json'
 application_flag = 'application_flag.txt'
-THREAD_SLEEP_TIME = 30
+THREAD_SLEEP_TIME = 20
 target_schema = "provisioning"
 
 

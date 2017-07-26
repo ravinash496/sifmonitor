@@ -45,28 +45,27 @@ def create_sequences_provisioning():
     """
     If there are no sequences in provisioning, This will create sequences
     :return: None
-    """
+    """ 
     db = postgresdb.DB()
     schema_tables = db.get_all_table_names("active")
-    if not schema_tables:
-        schema_tables = db.get_all_table_names("provisioning")
     create_sequence_sql = ""
-    next_val_sql = ""
-    set_path_sql = """set search_path to public, active, provisioning;"""
+    last_val_sql = ""
     schema_sql = ""
     for table_name in schema_tables:
-        next_val_sql = ""
-        next_val = ""
-        next_val_sql = set_path_sql + "SELECT last_value FROM active.{}_ogc_fid_seq;".format(table_name)
-        next_val = db.get_nextval(next_val_sql) + 1
+        last_val_sql = ""
+        last_val = ""
+        last_val_sql = "select nextval('active.{}_ogc_fid_seq');".format(table_name)
+        last_val = db.get_lastval(last_val_sql)
         create_sequence_sql += """CREATE SEQUENCE IF NOT EXISTS provisioning.{}_ogc_fid_seq
                               INCREMENT 1
                               MINVALUE 1
                               MAXVALUE 9223372036854775807
-                              START {}
+                              START 1
                               CACHE 1;
                               ALTER TABLE provisioning.{}_ogc_fid_seq
-                              OWNER TO postgres;""".format(table_name, next_val, table_name)
+                              OWNER TO postgres;
+                              Alter sequence provisioning.{}_ogc_fid_seq RESTART WITH {};
+                              Alter table provisioning.{} alter ogc_fid set DEFAULT nextval('provisioning."{}_ogc_fid_seq"');""".format(table_name, table_name, table_name, last_val, table_name, table_name)
     try:
         postgresdb.execute_sql(create_sequence_sql)
         logger.info("Creating provisioning sequences for all tables")
@@ -121,6 +120,7 @@ def download_atom_feed():
            "georss": "http://www.opengis.net/georss",
            "wfs": "http://www.opengis.org/wfs"}
     # Parse XML file and validate if there has been any changes to timestamp
+    
     parse_create_entry(lastupdateprocessed)
     if isinstance(mandatory_field_check, tuple) and (False in mandatory_field_check):
         mandatory_field_check = False
@@ -148,6 +148,7 @@ def download_atom_feed():
         try:
             update_schema()
             copy_tables_schema()
+            create_sequences_provisioning()
         except Exception as error:
             try:
                 os.remove(settings.application_flag)
@@ -179,6 +180,7 @@ def download_atom_feed():
     except OSError as ose:
         pass
     logger.info("******** END download_atom_feed() *******")
+
 
 def parse_create_entry(previousupdatedate):
     """
@@ -546,12 +548,10 @@ def copy_tables_schema():
     :return: None
     """
     # Check if provisioning sequences exist or else create those sequences
-    provisioning_sequences = check_provisioning_sequences()
-    if not provisioning_sequences:
-        create_sequences_provisioning()
+
+    
     db = postgresdb.DB()
     schema_tables = db.get_all_table_names("active")
-    set_path_sql = """set search_path to public, active, provisioning;"""
     schema_sql = ""
     for table_name in schema_tables:
         schema_sql += """CREATE TABLE provisioning.{} (LIKE active.{} INCLUDING  CONSTRAINTS INCLUDING INDEXES INCLUDING DEFAULTS); INSERT INTO provisioning.{} SELECT * FROM active.{};""".format(table_name, table_name, table_name, table_name, table_name)
@@ -563,7 +563,6 @@ def copy_tables_schema():
         engine = db.connect(credentials)
         try:
             with engine.connect() as con:
-                con.execute(set_path_sql)
                 con.execute(schema_sql)
         except Exception as error:
             logger.error(error)
