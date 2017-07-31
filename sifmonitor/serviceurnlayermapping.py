@@ -1,0 +1,1 @@
+{"urn:nena:service:sos.EMS": "esbems", "urn:nena:service:sos.fire": "esbfire", "urn:nena:service:sos.police": "esblaw", "urn:nena:service:sos": "esbpsap"}

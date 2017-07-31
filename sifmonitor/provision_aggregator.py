@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------------------------------------------
 #   Description: Python Utility to:
 #                1. Pull data from RSS feeds, validate and insert/modify into Postgres database
-#                   Currrently the file will be scheduled to run every 30 seconds
+#                   Currently the file will be scheduled to run every 30 seconds
 #
 #   Pre-requisites: Installation of the pip requirements file:
 #                   1. pip install -r requirements.pip
@@ -21,14 +21,32 @@ import time
 import urllib.request
 from datetime import datetime
 from lxml import etree
-
 # User defined Modules
 import os
+import json
 import postgresdb
 import transaction_mapper
 import schema_mapper
 import settings
 from logger_settings import *
+from get_serviceurnlayermapping import get_urn_table_mappings
+
+
+def update_service_urn():
+    """ Update the service_urn_mapping data which is stored in a file"""    
+    try:
+        db = postgresdb.DB()
+        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
+        engine = db.connect(credentials)
+        SERVICELAYERURNMAPPING = get_urn_table_mappings(engine)
+        with open(settings.service_urn_file, 'w') as fp:
+            json.dump(SERVICELAYERURNMAPPING, fp)
+    except Exception as error:
+        logger.error(error)
+        try:
+            os.remove(settings.application_flag)
+        except OSError:
+            pass
 
 
 def check_provisioning_sequences():
@@ -101,8 +119,13 @@ def download_atom_feed():
             fp = urllib.request.urlopen(url)
         else:
             logger.warning("No values retrieved for replicationfeed table")
+    
     except urllib.error.HTTPError as error:
         logger.error("\nurl field {} issue in `replicationfeed table`!!!:  {}".format(url, error))
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
         exit()
     
     except Exception as error:
@@ -119,8 +142,9 @@ def download_atom_feed():
            "gml": "http://www.opengis.net/gml",
            "georss": "http://www.opengis.net/georss",
            "wfs": "http://www.opengis.org/wfs"}
+    # Update serviceurn tables
+    update_service_urn()
     # Parse XML file and validate if there has been any changes to timestamp
-    
     parse_create_entry(lastupdateprocessed)
     if isinstance(mandatory_field_check, tuple) and (False in mandatory_field_check):
         mandatory_field_check = False
@@ -549,7 +573,6 @@ def copy_tables_schema():
     """
     # Check if provisioning sequences exist or else create those sequences
 
-    
     db = postgresdb.DB()
     schema_tables = db.get_all_table_names("active")
     schema_sql = ""
