@@ -154,23 +154,6 @@ class DB:
                 logger.error(error)
                 exit()
 
-    def get_service_urn_layer_mapping(self, transaction_data):
-        """Get the service urn layer mapping for a specififed table/service"""
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
-        table_name = "serviceurnlayermapping"
-        transaction_type = list(transaction_data.keys())[0]
-        table_map_type = list(transaction_data[transaction_type].keys())[0]
-        key = transaction_data[transaction_type][table_map_type].get('ServiceURN')
-        engine = self.connect(credentials)
-        try:
-            with engine.connect() as con:
-                sql = "select layername from public.{} where serviceurn = '{}';".format(table_name, key)
-                res = con.execute(sql)
-                result = res.fetchone()[0]  # result will be police | fire | sheriff
-                return result
-        except Exception as error:
-            logger.error(error)
-
     def connect(self, credentials):
         """Returns a connection and a metadata object"""
         # We connect with the help of the PostgreSQL URL
