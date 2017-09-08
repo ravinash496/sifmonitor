@@ -25,7 +25,6 @@ def get_service_urn(transaction_data):
         transaction_type = list(transaction_data.keys())[0]
         table_map_type = list(transaction_data[transaction_type].keys())[0]
         key = transaction_data[transaction_type][table_map_type].get('ServiceURN')
-        # import pdb;pdb.set_trace()
         with open(settings.service_urn_file, 'r') as fp:
             data = json.load(fp)
             table_name = data.get(key)

@@ -15,15 +15,6 @@ CREDENTIAL_FILE = 'connection.json'
 xml_log_history = "provisioninghistory.json"
 
 
-# def read_transactions():
-#     try:
-#         with open(transactions_file, 'r') as fp:
-#             data = fp.readlines()
-#         return data
-#     except IOError as ie:
-#         logger.error(ie)
-
-
 def get_databases():
     """Get credentials from connection.json file
     :return: databases
@@ -35,24 +26,6 @@ def get_databases():
         return databases
     except IOError as ie:
         logger.error(ie)
-
-
-# def execute_sql(sql, fetch=None):
-#     """Execute any general sequence statements and if fetch parameter is provided it returns the output"""
-#     db = DB()
-#     databases = get_databases()
-#     for database in databases:
-#         credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
-#         engine = db.connect(credentials)
-#         try:
-#             with engine.connect() as con:
-#                 res = con.execute(sql)
-#                 if fetch:
-#                     result = res.fetchall()
-#                     return result
-#         except Exception as error:
-#             logger.error(error)
-#             exit()
 
 
 def execute_sql(sql, fetch=None):
@@ -107,7 +80,6 @@ def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
                     result = res.fetchall()
                     return result
         except sqlalchemy.exc.DatabaseError as sqlerror:
-            # time.sleep(2)
             logger.error(sqlerror)
             if retry:
                 retry_exception_flag = True

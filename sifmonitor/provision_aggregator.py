@@ -182,7 +182,6 @@ def download_atom_feed():
                 exit()
 
             drop_schema()
-            # update_schema()
             copy_tables_schema()
             create_sequences_provisioning()
         except Exception as error:

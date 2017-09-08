@@ -60,7 +60,6 @@ def get_table_fields(table_name):
                               'ExpirationDate', 'Country', 'State'],
              'mandatory_fields': ['UniqueId', 'SourceofData', 'DateUpdated', 'Country', 'State']},
 
-
         'uninccommboundary':
             {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
                         'county', 'addcode', 'uninccomm'],
