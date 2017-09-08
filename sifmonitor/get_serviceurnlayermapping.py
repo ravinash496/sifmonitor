@@ -48,6 +48,7 @@ def get_serviceurn(tablename, engine):
         raise
     return urn
 
+
 def get_urn_table_mappings(engine):
     """
     Inspects the database and extracts the service urn to table mappings.

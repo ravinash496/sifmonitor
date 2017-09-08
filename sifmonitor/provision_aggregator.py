@@ -28,9 +28,13 @@ import postgresdb
 import transaction_mapper
 import schema_mapper
 import settings
+import sqlalchemy
+from sqlalchemy.exc import *
 from logger_settings import *
 from get_serviceurnlayermapping import get_urn_table_mappings
 
+global FIX_FLAG
+FIX_FLAG = False
 
 def update_service_urn():
     """ Update the service_urn_mapping data which is stored in a file"""    
@@ -170,7 +174,15 @@ def download_atom_feed():
                 pass
         # Update schema and copy schema
         try:
-            update_schema()
+            flip_flag = flip_schema()
+            if flip_flag:
+                logger.error("Flip Schema exception occurred!!! Exiting!")
+                open(settings.application_flag, 'w').close()
+                FIX_FLAG = True
+                exit()
+
+            drop_schema()
+            # update_schema()
             copy_tables_schema()
             create_sequences_provisioning()
         except Exception as error:
@@ -179,7 +191,7 @@ def download_atom_feed():
             except OSError as ose:
                 pass
             logger.error(error)
-            exit()
+            # exit()
         updatedTime = datetime.strptime(
             xml_update_timestamp, "%Y-%m-%dT%H:%M:%Sz").replace(tzinfo=None)
         if updatedTime > lastupdateprocessed.replace(tzinfo=None):
@@ -538,29 +550,48 @@ def transaction_delete(transactiondict):
     return mandatory_check
 
 
-def update_schema():
+def flip_schema():
     """
     Rename schema from active to provisioning and vice versa
+    :return: None
+    """
+    flip_sql = """ALTER SCHEMA active RENAME TO bogus;
+             ALTER SCHEMA provisioning RENAME TO active; 
+             ALTER SCHEMA bogus RENAME TO provisioning;
+         """
+    flip_flag_exception = False
+    flip_flag_exception_retry = False
+    flip_schema_results = postgresdb.retry_execute_sql(flip_sql)
+    successful_dbs = flip_schema_results[1]
+    if flip_schema_results[0] == True and len(successful_dbs) >= 1:
+        postgresdb.retry_execute_sql(flip_sql, successful_dbs, retry=True)
+        logger.info("Rename schema from active to provisioning and vice versa")
+        flip_flag_exception = True
+        return flip_flag_exception
+    elif flip_schema_results[0] == True and not successful_dbs:
+        return True
+    else:
+        return flip_flag_exception
+
+
+def drop_schema(flip_flag_exception=None):
+    """
     Drop provisioning cascade and recreate
     :return: None
     """
     db = postgresdb.DB()
-    schema_tables = db.get_all_table_names("provisioning")
-
-    sql = """ALTER SCHEMA active RENAME TO bogus;
-             ALTER SCHEMA provisioning RENAME TO active; 
-             ALTER SCHEMA bogus RENAME TO provisioning;
-             DROP SCHEMA provisioning CASCADE;
+    drop_sql = """DROP SCHEMA provisioning CASCADE;
              CREATE SCHEMA provisioning;"""
     
     databases = postgresdb.get_databases()
-    logger.info("Rename schema from active to provisioning and vice versa")
+    logger.info("Drop and recreate provisioning schema")
     for database in databases:
         credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
         engine = db.connect(credentials)
         try:
-            with engine.connect() as con:
-                con.execute(sql)
+            postgresdb.execute_sql(drop_sql)
+        except sqlalchemy.exc.DatabaseError as sqlerror:
+            logger.error(sqlerror)
         except Exception as error:
             logger.error(error)
             exit()
@@ -593,7 +624,8 @@ def copy_tables_schema():
 
 
 def schedule_thread():
-    if os.path.exists(settings.application_flag):
+
+    if os.path.exists(settings.application_flag) and not FIX_FLAG:
         os.remove(settings.application_flag)
     """Run downloadAtomfeed() every 30 seconds as a separate thread"""
     while 1:
