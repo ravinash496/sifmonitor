@@ -6,6 +6,7 @@ THREAD_SLEEP_TIME = 30
 target_schema = "provisioning"
 service_urn_file = "serviceurnlayermapping.py"
 
+
 def read_json(credential_file):
     """Read JSON setting file"""
     try:

@@ -12,7 +12,7 @@ def get_table_fields(table_name):
     # mandatory_fields are the mandatory fields in that particular table
     table_mapping = {
         'roadcenterline':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'premod', 'predir', 'pretype', 'pretypesep', 'strname',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', 'premod', 'predir', 'pretype', 'pretypesep', 'strname',
                         'posttype', 'postdir', 'postmod', 'addrngprel', 'addrngprer', 'fromaddl', 'fromaddr', 'toaddl',
                         'toaddr', 'parityl', 'parityr', 'updatedate', 'effective', 'expire', 'countryl', 'countryr',
                         'statel', 'stater', 'countyl', 'countyr', 'addcodel', 'addcoder', 'incmunil', 'incmunir',
@@ -38,7 +38,7 @@ def get_table_fields(table_name):
                                   'IncorporatedMunicipalityNameRight', 'RoadClass', 'ESNLeft', 'ESNRight']},
 
         'incmunicipalboundary':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
                         'county', 'addcode', 'muni'],
              'paramkeylist': ['PolygonGeometry', 'UniqueId', 'SourceofData', 'DateUpdated', 'EffectiveDate',
                               'ExpirationDate', 'Country', 'State', 'County', 'AdditionalCode',
@@ -47,21 +47,22 @@ def get_table_fields(table_name):
                                   'IncorporatedMunicipalityName']},
 
         'countyboundary':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
                         'county'],
              'paramkeylist': ['PolygonGeometry', 'UniqueId', 'SourceofData', 'DateUpdated', 'EffectiveDate',
                               'ExpirationDate', 'Country', 'State', 'County'],
              'mandatory_fields': ['UniqueId', 'SourceofData', 'DateUpdated', 'Country', 'State', 'County']},
 
         'stateboundary':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', ' updatedate', 'effective', 'expire', 'country',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', ' updatedate', 'effective', 'expire', 'country',
                         'state'],
              'paramkeylist': ['PolygonGeometry', 'UniqueId', 'SourceofData', 'DateUpdated', 'EffectiveDate',
                               'ExpirationDate', 'Country', 'State'],
              'mandatory_fields': ['UniqueId', 'SourceofData', 'DateUpdated', 'Country', 'State']},
 
+
         'uninccommboundary':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
                         'county', 'addcode', 'uninccomm'],
              'paramkeylist': ['PolygonGeometry', 'UniqueId', 'SourceofData', 'DateUpdated', 'EffectiveDate',
                               'ExpirationDate', 'Country', 'State', 'County', 'AdditionalCode',
@@ -70,7 +71,7 @@ def get_table_fields(table_name):
                                   'UnincorporatedCommunityName']},
 
         'ssap':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'updatedate', 'effective', 'expire,country', 'state',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', 'updatedate', 'effective', 'expire,country', 'state',
                         'county', 'addcode', 'incmuni', 'uninccomm', 'nbrhdcomm', 'premod', 'predir', 'pretype',
                         'pretypesep', 'strname', 'posttype', 'postdir', 'postmod', 'addnumpre', 'addnum', 'addnumsuf',
                         'milepost', 'esn', 'postcomm', 'zipcode', 'building', 'floor', 'unit', 'room', 'seat',
@@ -87,7 +88,7 @@ def get_table_fields(table_name):
              'mandatory_fields': ['UniqueId', 'SourceofData', 'DateUpdated', 'Country', 'State', 'County',
                                   'IncorporatedMunicipalityName', 'ESN', 'PostalCode']},
         'serviceboundary':
-            {'fields': ['wkb_geometry', 'gcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
+            {'fields': ['wkb_geometry', 'srcunqid', 'srcofdata', 'updatedate', 'effective', 'expire', 'country', 'state',
                         'county', 'agencyid', 'routeuri', 'serviceurn', 'servicenum', 'vcarduri', 'displayname'],
              'paramkeylist': ['PolygonGeometry', 'UniqueId', 'SourceofData', 'DateUpdated', 'EffectiveDate',
                               'ExpirationDate', 'Country', 'State', 'County', 'AgencyId', 'ServiceURI', 'ServiceURN',
