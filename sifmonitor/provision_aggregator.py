@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env if element.tag == 'content':
 # ---------------------------------------------------------------------------------------------------------
 # Script Name: provision_aggregator.py
 # ---------------------------------------------------------------------------------------------------------
@@ -25,6 +25,7 @@ from lxml import etree
 import os
 import json
 import postgresdb
+import requests
 import transaction_mapper
 import schema_mapper
 import settings
@@ -34,7 +35,80 @@ from logger_settings import *
 from get_serviceurnlayermapping import get_urn_table_mappings
 
 global FIX_FLAG
+global st
+
 FIX_FLAG = False
+MAX_ENTRY = 25
+entrycount = 0
+ec = 0
+global entryid
+entryid = []
+entrycountflag = False
+
+
+def build_xml_url(request_type, start_position=None, max_entry=None, start_time=None, entry_id=None):
+    '''
+    :param request_type: Get request/ put request
+    :param start_position: start position of the feed entry
+    :param max_entry: number of entries in the feed for each iteration basically 25
+    :param start_time: current time
+    :param entry_id: 
+    :return: 
+    Get the xml url based on the params and type of request
+    '''
+    get_base_url = "http://gms-web-1.geo-comm.local/GSS/api/GSS/GetEntries?"
+    put_base_url = "http://gms-web-1.geo-comm.local/GSS/api/ReplicationFeed/UpdateEntryState?"
+    subscriber_id = '6d421201-df87-425f-8cb9-07eb724295c3'
+    start_position = start_position
+    max_entries = max_entry
+    temporal_operator = "Before"
+    start_time = start_time
+    acceptance_state = "True"
+
+    if request_type == 'get':
+        url = "{}subscriberId={}&startPosition={}&maxentries={}&temporalOperator={}".format(get_base_url, subscriber_id, start_position, max_entries, temporal_operator)
+    else:
+        entry_id = entry_id.split(':')[-1]
+        url = "{}entryId={}&acceptanceState={}&subscriberId={}".format(put_base_url, entry_id, acceptance_state, subscriber_id)
+    return url
+
+
+def get_xml(start_position):
+    """
+    get xml from the feed by passing required parameters 
+    :param start_position: start position of the entry tag's
+    :return: 
+    """
+    try:
+
+        url = build_xml_url(request_type='get', start_position=start_position, max_entry=MAX_ENTRY)
+        req = urllib.request.Request(url)
+        req.add_header('Accept', 'application/atom+xml')
+        xfp = urllib.request.urlopen(req)
+        return xfp
+    except Exception as error:
+        logger.error(error)
+
+
+def put_xml(entry_id):
+    """
+    Deletes entry's in the feed 
+    :param entry_id: 
+    :return: 
+    """
+    try:
+        url = build_xml_url(request_type='put', entry_id=entry_id)
+        res = requests.put(url)
+    except urllib.error.HTTPError as error:
+        logger.error("\nurl field {} issue in `replicationfeed table`!!!:  {}".format(url, error))
+        try:
+            os.remove(settings.application_flag)
+        except OSError as ose:
+            pass
+        exit()
+    except Exception as error:
+        logger.error(error)
+
 
 def update_service_urn():
     """ Update the service_urn_mapping data which is stored in a file"""    
@@ -101,11 +175,10 @@ def create_sequences_provisioning():
 
 
 def download_atom_feed():
-    """Download the xml file and parse through and check the entry tags. Retrieve
-     values from replication feed table
+    """Download the xml file and parse through and check the entry tags. 
     :return: None 
     """
-    logger.info("******* START download_atom_feed() *******")   
+    logger.info("******* START download_atom_feed() *******")
     # Create a file for application status flag
     open(settings.application_flag, 'w').close()
     
@@ -113,33 +186,7 @@ def download_atom_feed():
     global url
     global fp
     global mandatory_field_check
-    postgres = postgresdb.DB()
-    feedList = postgres.get_replicationfeeds()
-    try:
-        if feedList:
-            lastupdateprocessed = feedList[4]
-            item_id = feedList[0]
-            url = feedList[2]
-            fp = urllib.request.urlopen(url)
-        else:
-            logger.warning("No values retrieved for replicationfeed table")
-    
-    except urllib.error.HTTPError as error:
-        logger.error("\nurl field {} issue in `replicationfeed table`!!!:  {}".format(url, error))
-        try:
-            os.remove(settings.application_flag)
-        except OSError as ose:
-            pass
-        exit()
-    
-    except Exception as error:
-        try:
-            os.remove(settings.application_flag)
-        except OSError as ose:
-            pass
-        logger.error("\nERROR in `replicationfeed table`!!!:  {}"
-                     .format(error))
-        exit()
+    db = postgresdb.DB()
 
     # Namespaces
     ns1 = {"atom": "http://www.w3.org/2005/Atom",
@@ -148,31 +195,36 @@ def download_atom_feed():
            "wfs": "http://www.opengis.org/wfs"}
     # Update serviceurn tables
     update_service_urn()
-    # Parse XML file and validate if there has been any changes to timestamp
-    parse_create_entry(lastupdateprocessed)
+    start_position = 0
+    entrycount = 0
+    entrycount_res = 0
+    while entrycount % 25 in (0, 25):
+        xfp = get_xml(start_position)
+        entrycount, start_position = parse_create_entry(xfp, start_position)
+        entrycount_res += entrycount
+        start_position = entrycount_res + 1
+        if entrycount < 25:
+            start_position = 0
+            break
+    # drop provisioning schema and create again if there is something to update in database
+    drop_schema()
+    # copy tables from active schema to provisioning schema
+    copy_tables_schema()
+    # create sequences for new tables in provisioning schema
+    create_sequences_provisioning()
+
     if isinstance(mandatory_field_check, tuple) and (False in mandatory_field_check):
         mandatory_field_check = False
     elif isinstance(mandatory_field_check, tuple) and not (False in mandatory_field_check):
         mandatory_field_check = True
     else:
         mandatory_field_check = mandatory_field_check
-        # mandatory_field will be( False,True, Fale) if false exists then its F
-
+        # mandatory_field will be( False,True, False) if false exists then its F
     if mandatory_field_check and transaction_flag:
         commit_flag = True
         # Commit to database only if the commit_flag is true
-        # Update the replicationfeeds database value with the timestamp from xml only if this commit flag is True
-        # Perform transaction
-        db = postgresdb.DB()
-        try:
-            db.transaction_sql()
-        except Exception as error:
-            logger.error(error)
-            try:
-                os.remove(settings.application_flag)
-            except:
-                pass
-        # Update schema and copy schema
+        # Perform transactions
+        db.transaction_sql()
         try:
             flip_flag = flip_schema()
             if flip_flag:
@@ -181,9 +233,11 @@ def download_atom_feed():
                 FIX_FLAG = True
                 exit()
 
-            drop_schema()
-            copy_tables_schema()
-            create_sequences_provisioning()
+            # for now it's commented, it will delete all the entries in the feed
+            # Loop through entry id and clear the entry id tag
+            # for e_id in entryid:
+            #     put_xml(entry_id=e_id)
+
         except Exception as error:
             try:
                 os.remove(settings.application_flag)
@@ -191,21 +245,12 @@ def download_atom_feed():
                 pass
             logger.error(error)
             # exit()
-        updatedTime = datetime.strptime(
-            xml_update_timestamp, "%Y-%m-%dT%H:%M:%Sz").replace(tzinfo=None)
-        if updatedTime > lastupdateprocessed.replace(tzinfo=None):
-            timestamp_update_date = xml_update_timestamp.split('Z')[0]
-            db = postgresdb.DB()
-            db.update_last_processed(timestamp_update_date,
-                                           lastupdateprocessed,
-                                           item_id)
-    
     elif transaction_flag and not mandatory_field_check:
         try:
             os.remove(settings.application_flag)
         except OSError as ose:
             pass
-         
+
         logger.error("Transaction Aborted, nothing to update!!!")
     else:
         logger.info("No changes in XML, nothing to update!!!")
@@ -217,13 +262,10 @@ def download_atom_feed():
     logger.info("******** END download_atom_feed() *******")
 
 
-def parse_create_entry(previousupdatedate):
-    """
-     Parse the XML and check the necessary entries
-    :param previousupdatedate: Last update processed time stamp
-    :return: None
-    """
-
+def parse_create_entry(xfp, start_position):
+    global entrycountflag
+    entrycount = 0
+    st = 0
     transactiontype = []
     transactiondict = {}
     geoTypeList = []
@@ -231,119 +273,78 @@ def parse_create_entry(previousupdatedate):
     update_list = []
     data = []
     updatedflag = False
+    GT = []
     global transaction_flag
     global commit_flag
     global timestamp_update_date
     global mandatory_field_check
     global xml_update_timestamp
+    
+    tableinfo = []
     transaction_flag = False
     commit_flag = False
     try:
         # Loop through the SOM element
-        for event, element in etree.iterparse(fp):
-            if event == 'end' and element.tag == '{http://www.w3.org/2005/Atom}updated':
-                # Get both updatedate tag from xml file
-                update_list.append(element.text)
-                if len(update_list) > 1:
-                    # Convert the string date to datetime object type for both
-                    # updatetimstamp from xml file
-                    updatedTime = datetime.strptime(
-                        update_list[0], "%Y-%m-%dT%H:%M:%Sz").replace(tzinfo=None)
-                    xml_update_timestamp = update_list[0]
-                    updatedTimeelement = datetime.strptime(
-                        update_list[1], "%Y-%m-%dT%H:%M:%Sz").replace(tzinfo=None)
-                    timestamp_update_date = update_list[0].split('Z')[0]
-                    previous_replicationupdate = datetime.strftime(
-                        previousupdatedate, "%Y-%m-%dT%H:%M:%S")
-                    # Break from the entry tag1 when both update at fields are
-                    # matching with DB update and go to next entry tag
-                    if (updatedTime == previousupdatedate.replace(tzinfo=None)
-                        ) and (updatedTimeelement == previousupdatedate.replace(
-                                                                                tzinfo=None)):
-                        update_list.pop(1)
-                        updatedflag = False
-                        continue
-
-                    # check DB updatetime and xml update time and update flag
-                    # and loop through entry or sub nodes
-                    if updatedTimeelement > previousupdatedate.replace(tzinfo=None):
-                        updatedflag = True
-                    else:
-                        updatedflag = False
-                        update_list.pop(1)
-                        continue
-
-                    # Pop the second element from update_list to filter out
-                    # different updatetags
-                    update_list.pop(1)
-            # Based on the updateflag , if set to true then only perform
-            # transactions, or else continue to next entry
-            if event == 'end' and element.tag == '{http://www.w3.org/2005/Atom}entry' and updatedflag:
-                alias_address = 0
-                alias_street_segment = 0
+        for event, element in etree.iterparse(xfp):
+            if event == 'end' and element.tag == '{http://www.w3.org/2005/Atom}entry':
+                entrycount = entrycount + 1
+                entrycountflag = True
+                start_position +=1
                 dataDict = {}
                 transaction_flag = True
-                
                 for e in element:
-                    # browse through the content to get the transaction
+                    if e.tag == '{http://www.w3.org/2005/Atom}id':
+                        entryid.append(e.text)
                     for content in e:
-                        if content.tag == "{http://www.opengis.org/wfs}Transaction":
-                            for transactiontp in content:  # insert,update or delete
-                                transactiontype.append(etree.QName(transactiontp.tag).localname)
-                                for geoType in transactiontp:  # SIAdapter, Centerline etc
-                                    geoTypeList.append(etree.QName(geoType.tag).localname)
-                                    if etree.QName(geoType.tag).localname != 'siadapter':
-                                        geoType = transactiontp
-                                    for geoType2 in geoType:
-                                        geoTypeList2.append(geoType2.tag)  # centerline, stateboundery ect
-                                        for data in geoType2.iter():
-                                            if etree.QName(data.tag).namespace == ns1['gml']:
-                                                if etree.QName(data.getparent()).localname in dataDict.keys():
-                                                    del dataDict[etree.QName(data.getparent()).localname]
-                                                dataDict[etree.QName(data.getparent()).localname] = etree.tostring(data,
-                                                                                                                   encoding='utf-8',
-                                                                                                                   method="xml")
-                                                break
-                                        for data in geoType2.iter():
-                                            if etree.QName(data.tag).localname in (
-                                                    'StreetSegment', 'AliasStreetSegment'):
-                                                alias_street_segment += 1
-                                            if etree.QName(data.tag).localname in ('Address', 'AliasAddress'):
-                                                alias_address += 1
-                                            if etree.QName(data.tag).localname in dataDict.keys():
-                                                continue
-                                            elif etree.QName(data.tag).namespace == ns1['gml']:
-                                                continue
-                                            elif alias_street_segment > 1 and etree.QName(
-                                                    data.tag).localname in schema_mapper.skip_fields:
-                                                continue
-                                            elif alias_address > 1 and etree.QName(data.tag).localname in schema_mapper.skip_fields:
-                                                continue
-                                            dataDict[etree.QName(data.tag).localname] = data.text
-                                        transactiondict[etree.QName(transactiontp.tag).localname] = {(etree.QName(
-                                            geoType.tag).localname, geoType2.tag.replace(
-                                            '{urn:nena:xml:ns:SIProvisioningExchange:2.0}', '')): dataDict}
-                                        # Perform one transaction at a time
-                                        mandatory_field_check = transaction(transactiondict, transactiontype)
-                                        # Check if mandatory_field_check is False
-                                        # and return/exit from this function
-                                        if (isinstance(mandatory_field_check,
-                                                       bool) and mandatory_field_check == False) or (
-                                                    isinstance(mandatory_field_check,
-                                                               tuple) and False in mandatory_field_check):
-                                            return
-                                        # Reinitialise the below variables
-                                        transactiontype = geoTypeList = []
-                                        transactiondict = {}
-                                        del geoType
-                                        del geoType2
-                                        del data
-                                        del transactiontp
-                                        del content
-                                        del e
-                                        del element
-            elif not updatedflag:
-                mandatory_field_check = False
+                        if content.tag == "category":
+                            transactiontype.append(content.text)
+                        if content.tag == "content":
+                            for transactiontp in content:
+                                GT.append(etree.QName(transactiontp.tag).localname)
+                                for geotype in transactiontp:
+                                    tableinfo.append(etree.QName(geotype.tag).localname)
+                                if etree.QName(transactiontp.tag).localname != 'siadapter':
+                                    geotype = transactiontp
+                                    GT[0] = transactiontype[0]
+                                for data in geotype.iter():
+                                    if etree.QName(data.tag).namespace == ns1['gml']:
+                                        if etree.QName(data.getparent()).localname in dataDict.keys():
+                                            del dataDict[etree.QName(data.getparent()).localname]
+                                        dataDict[etree.QName(data.getparent()).localname] = etree.tostring(data,
+                                                                                                               encoding='utf-8',
+                                                                                                               method="xml")
+                                        break
+
+                                ##transactiontype.append(etree.QName(transactiontp.tag).localname)
+                                for data in transactiontp.iter():
+                                    if etree.QName(data.tag).localname in dataDict.keys():
+                                        continue
+                                    elif etree.QName(data.tag).namespace == ns1['gml']:
+                                        continue
+                                    dataDict[etree.QName(data.tag).localname] = data.text
+                                transactiondict[transactiontype[0]] = {(GT[0], etree.QName(geotype.tag).localname): dataDict}
+                                # transactiondict[transactiontype[0]] = {(etree.QName(
+                                #     geoType.tag).localname, geoType2.tag.replace(
+                                #     '{urn:nena:xml:ns:SIProvisioningExchange:2.0}', '')): dataDict}
+                                # Perform one transaction at a time
+                                mandatory_field_check = transaction(transactiondict, transactiontype)
+                                # Check if mandatory_field_check is False
+                                # and return/exit from this function
+                                if (isinstance(mandatory_field_check,bool) and mandatory_field_check == False) or (isinstance(mandatory_field_check,tuple) and False in mandatory_field_check):
+                                    return
+                                # Reinitialise the below variables
+                                transactiontype = geoTypeList = []
+                                transactiondict = {}
+                                GT = []
+                                del dataDict
+                                del geotype
+                                del data
+                                del transactiontp
+                                del content
+                                del e
+                                del element
+            # elif not updatedflag:
+            #     mandatory_field_check = False
             else:
                 continue
     except Exception as error:
@@ -353,6 +354,9 @@ def parse_create_entry(previousupdatedate):
         except OSError as ose:
             pass
         exit()
+    if entrycount == 0:
+        mandatory_field_check = False
+    return entrycount, start_position
 
 
 def transaction(transactiondict, transactiontype):
@@ -554,6 +558,7 @@ def flip_schema():
     Rename schema from active to provisioning and vice versa
     :return: None
     """
+
     flip_sql = """ALTER SCHEMA active RENAME TO bogus;
              ALTER SCHEMA provisioning RENAME TO active; 
              ALTER SCHEMA bogus RENAME TO provisioning;
@@ -625,12 +630,15 @@ def copy_tables_schema():
 def schedule_thread():
 
     if os.path.exists(settings.application_flag) and not FIX_FLAG:
-        os.remove(settings.application_flag)
+        try:
+            os.remove(settings.application_flag)
+        except OSError:
+            pass
     """Run downloadAtomfeed() every 30 seconds as a separate thread"""
     while 1:
         try:
             # Check if the application is running, start a new thread only if application flag is set to False or not available
-            # If application flag doesnt exist then only initiate the thread
+            # If application flag does not exist then only initiate a new the thread
             if not os.path.exists(settings.application_flag):
                 transaction_mapper.TRANSACTION_RESULTS = {}
                 t = threading.Thread(target=download_atom_feed)
@@ -649,4 +657,7 @@ def schedule_thread():
 
 
 if __name__ == "__main__":
-    schedule_thread()  # Schedule as a thread which runs as a backend job
+    schedule_thread()  # Schedule as a thread runs as a backend job
+
+
+

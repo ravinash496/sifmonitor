@@ -6,7 +6,7 @@ import psycopg2
 import sqlalchemy
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session
-
+#import provision_aggregator
 import settings
 import transaction_mapper
 from logger_settings import *
@@ -30,7 +30,6 @@ def get_databases():
 
 def execute_sql(sql, fetch=None):
     """Execute any general sequence statements and if fetch parameter is provided it returns the output"""
-    exception_flag = False
     db = DB()
     databases = get_databases()
     for database in databases:
@@ -43,9 +42,8 @@ def execute_sql(sql, fetch=None):
                     result = res.fetchall()
                     return result
         except Exception as error:
-            exception_flag = True
             logger.error(error)
-            return exception_flag
+            exit()
 
 
 def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
@@ -64,8 +62,10 @@ def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
     if not databases and not retry:
         databases = get_databases()
     for database in databases:
+
         credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
         engine = db.connect(credentials)
+
         try:
             with engine.connect() as con:
                 res = con.execute(sql)
@@ -113,6 +113,11 @@ class DB:
 
     # get all table names from the given Schema
     def get_all_table_names(self, schema_name):
+        """
+        get all Table name from required schema
+        :param schema_name: 
+        :return: 
+        """
         sql = """SELECT table_name FROM information_schema.tables
                  WHERE table_schema='{}';""".format(schema_name)
         res = execute_sql(sql, fetch=True)
@@ -132,7 +137,11 @@ class DB:
             connection = engine.connect()
             trans = connection.begin()
             # Read transactions from transaction data structure
-            transactions = "".join(transaction_mapper.TRANSACTION_RESULTS['sql'])
+            if transaction_mapper.TRANSACTION_RESULTS.get('sql'):
+                transactions = "".join(transaction_mapper.TRANSACTION_RESULTS['sql'])
+            else:
+                logger.info("INFO: No transaction SQL statements  to execute")
+                exit()
             try:
                 # Execute the transactions
                 logger.info("Connecting to postgresDB to execute the transactions in provisioning schema")
@@ -141,8 +150,11 @@ class DB:
                 self.log_modification_history()
             
             except sqlalchemy.exc.IntegrityError as pse:
-                logger.error(":: Duplicate key value violates unique constraint, gcunqid already exists!!!")
-                os.remove(settings.application_flag)
+                logger.error(":: Duplicate key value violates unique constraint, srcunqid already exists!!!")
+                try:
+                    os.remove(settings.application_flag)
+                except OSError:
+                    pass
                 exit()
             
             except Exception as error:
@@ -150,7 +162,10 @@ class DB:
                 trans.rollback()
                 transaction_mapper.TRANSACTION_RESULTS = {}
                 logger.error(error)
-                os.remove(settings.application_flag)
+                try:
+                    os.remove(settings.application_flag)
+                except OSError:
+                    pass
                 exit()
             finally:
                 connection.close()
@@ -237,3 +252,4 @@ class DB:
             except Exception as error:
                 logger.error(error)
                 exit()
+
