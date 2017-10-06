@@ -57,11 +57,18 @@ def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
              ALTER SCHEMA provisioning RENAME TO active; 
              ALTER SCHEMA bogus RENAME TO provisioning;
          """
-
+    sql2 = """ALTER SCHEMA active RENAME T bogus;
+             ALTER SCHEMA provisioning RENAME T active; 
+             ALTER SCHEMA bogus RENAME T provisioning;
+         """
     db = DB()
     if not databases and not retry:
         databases = get_databases()
     for database in databases:
+        # if databases == 'srgis':
+        #     sql = sql
+        # else:
+        #     sql = sql2
 
         credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
         engine = db.connect(credentials)
@@ -80,6 +87,7 @@ def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
                     result = res.fetchall()
                     return result
         except sqlalchemy.exc.DatabaseError as sqlerror:
+            # time.sleep(2)
             logger.error(sqlerror)
             if retry:
                 retry_exception_flag = True
@@ -113,11 +121,6 @@ class DB:
 
     # get all table names from the given Schema
     def get_all_table_names(self, schema_name):
-        """
-        get all Table name from required schema
-        :param schema_name: 
-        :return: 
-        """
         sql = """SELECT table_name FROM information_schema.tables
                  WHERE table_schema='{}';""".format(schema_name)
         res = execute_sql(sql, fetch=True)
