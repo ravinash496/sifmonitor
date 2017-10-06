@@ -35,8 +35,10 @@ def get_urls():
 
 def start_provision_aggregator():
     logger.info("Starting provision aggregator!!!")
-    python_bin = r"C:\Users\arayapudi\Documents\GitHub\lostservice\lost-env\Scripts\python.exe"
-    script_file = r"C:\Users\arayapudi\PycharmProjects\test2\provision_aggregator.py"
+    # Python_bin is path of your virtual environment
+    python_bin = r""
+    # script_file is provision_aggregator path
+    script_file = r""
     subprocess.call([python_bin, script_file])
 
 while 1:
