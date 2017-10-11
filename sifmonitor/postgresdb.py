@@ -62,7 +62,6 @@ def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
     if not databases and not retry:
         databases = get_databases()
     for database in databases:
-
         credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
         engine = db.connect(credentials)
 
@@ -114,7 +113,7 @@ class DB:
     # get all table names from the given Schema
     def get_all_table_names(self, schema_name):
         """
-        get all Table name from required schema
+        Get all Table name from required schema
         :param schema_name: 
         :return: 
         """

@@ -181,7 +181,7 @@ def download_atom_feed():
     logger.info("******* START download_atom_feed() *******")
     # Create a file for application status flag
     open(settings.application_flag, 'w').close()
-    
+
     global ns1
     global url
     global fp

@@ -1,1 +1,0 @@
-"Insert into public.provisioninghistory(table_name, modified_count, last_modified) values('ssap', 454, '2017-09-29 13:51:04.925049'); Insert into public.provisioninghistory(table_name, modified_count, last_modified) values('roadcenterline', 263, '2017-09-29 13:51:04.925049'); "
