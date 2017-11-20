@@ -13,4 +13,3 @@ if __name__ == '__main__':
                settings.SIFMONITOR_CREDENTIALS[settings.SERVER_NAME]['APP_SERVER_PORT'],
                api, use_debugger=True,
                use_reloader=True)
-

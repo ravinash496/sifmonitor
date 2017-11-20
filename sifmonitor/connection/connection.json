@@ -1,0 +1,12 @@
+{
+    "srgis":
+        {
+            "host": "Ip address",
+            "user": "postgres",
+            "password": "PWD",
+            "port": "port",
+            "db": "DB name",
+            "schema": "Target schema name"
+        }
+}
+

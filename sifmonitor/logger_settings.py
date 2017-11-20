@@ -7,9 +7,9 @@ logging_config = dict(
     version=1,
     formatters={
         'verbose': {
-            'format': ("[%(asctime)s] %(levelname)s "
+            'format': ("[%(asctime)s].%(msecs)03d %(levelname)s "
                        "[%(name)s:%(lineno)s] %(message)s"),
-            'datefmt': "%d/%b/%Y %H:%M:%S",
+            'datefmt': "%Y-%m-%d %H:%M:%S",
         },
         'simple': {
             'format': '%(levelname)s %(message)s',
@@ -25,7 +25,7 @@ logging_config = dict(
         'console': {
             'class': 'logging.StreamHandler',
             'level': 'DEBUG',
-            'formatter': 'simple',
+            'formatter': 'verbose',
             'stream': sys.stdout,
         },
     },

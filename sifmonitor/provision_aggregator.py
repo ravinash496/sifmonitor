@@ -56,9 +56,12 @@ def build_xml_url(request_type, start_position=None, max_entry=None, start_time=
     :return: 
     Get the xml url based on the params and type of request
     '''
-    get_base_url = "http://gms-web-1.geo-comm.local/GSS/api/GSS/GetEntries?"
-    put_base_url = "http://gms-web-1.geo-comm.local/GSS/api/ReplicationFeed/UpdateEntryState?"
-    subscriber_id = '6d421201-df87-425f-8cb9-07eb724295c3'
+    # get_base_url = "URL to get the feed"
+    # put_base_url = "URL to delete feed"
+    # subscriber_id = 'subscriber_id'
+    get_base_url = os.environ.get('GET_BASE_URL')
+    put_base_url = os.environ.get('PUT_BASE_URL')
+    subscriber_id = os.environ.get('SUBSCRIBER_ID')
     start_position = start_position
     max_entries = max_entry
     temporal_operator = "Before"

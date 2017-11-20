@@ -11,7 +11,7 @@ import settings
 import transaction_mapper
 from logger_settings import *
 
-CREDENTIAL_FILE = 'connection.json'
+CREDENTIAL_FILE = 'connection/connection.json'
 xml_log_history = "provisioninghistory.json"
 
 
