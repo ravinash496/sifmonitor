@@ -5,8 +5,8 @@ import settings
 import time
 from logger_settings import *
 
-SERVER_HOST1 =os.environ.get('SERVER_HOST1')
-# SERVER_HOST1 = 'host ip address'
+config = settings.read_config_file()
+SERVER_NAME = config["App"]["SERVER_NAME"]
 
 
 def ping_server():
@@ -26,14 +26,31 @@ def ping_server():
 
 
 def get_urls():
-    sif_monitor_details = settings.SIFMONITOR_CREDENTIALS[settings.SERVER_NAME]
-    if settings.SERVER_NAME == 'SIF_MONITOR_BACKUP1':
-        url = [{"url": "http://{}:{}/ping".format(SERVER_HOST1, sif_monitor_details['MASTER_SERVER_PORT']), "host": "MASTER"}]
+    sif_monitor_details = eval(config["App"]["SIFMONITOR_CREDENTIALS"])
+    urls_list = []
+    if 'SIF_MONITOR_MASTER' == SERVER_NAME:
+        logger.info("No URLs to fetch")
 
-    elif settings.SERVER_NAME == 'SIF_MONITOR_BACKUP2':
-        url1 = "http://{}:{}/ping".format(SERVER_HOST1, sif_monitor_details['MASTER_SERVER_PORT'])
-        url2 = "http://{}:{}/ping".format(SERVER_HOST1, sif_monitor_details['BACKUP_SERVER_PORT'])
-        url = [{'url': url1, 'host': 'MASTER'}, {'url': url2, 'host': 'BACKUP1'}]
+    elif 'BACKUP' in SERVER_NAME:
+        server_list = eval(SERVER_NAME[-1])
+        master_host = sif_monitor_details["SIF_MONITOR_MASTER"]["SERVER_HOST"]
+
+        if server_list == 1:
+            url1 = "http://{}:{}/ping".format(master_host, sif_monitor_details[SERVER_NAME]['MASTER_SERVER_PORT'])
+            url = {'url': url1, 'host': SERVER_NAME}
+
+        elif server_list > 1:
+            master_url = "http://{}:{}/ping".format(master_host, sif_monitor_details["SIF_MONITOR_MASTER"]['APP_SERVER_PORT'])
+            urls_list.append({'url': master_url, 'host': 'SIF_MONITOR_MASTER'})
+
+            for server in range(1, server_list):
+                BACKUP_SERVER_NAME = "SIF_MONITOR_BACKUP" + str(server)
+                backup_host = sif_monitor_details[BACKUP_SERVER_NAME]["SERVER_HOST"]
+                url1 = "http://{}:{}/ping".format(backup_host, sif_monitor_details[BACKUP_SERVER_NAME]['APP_SERVER_PORT'])
+                urls_list.append({'url': url1, 'host': BACKUP_SERVER_NAME})
+                url1 = ""
+
+            url = urls_list
 
     return url
 
@@ -41,9 +58,11 @@ def get_urls():
 def start_provision_aggregator():
     logger.info("Starting provision aggregator!!!")
     # Python_bin is path of your virtual environment
-    python_bin = r""
+    venv = config["file_path"]["python_bin"]
+    python_bin = r"{}".format(venv)
     # script_file is provision_aggregator path
-    script_file = r""
+    provision_file = config["file_path"]["script_file_provision_aggregator"]
+    script_file = r"{}".format(provision_file)
     # subprocess.call([python_bin, script_file])
     subprocess.call([python_bin, script_file])
 
@@ -51,22 +70,23 @@ def start_provision_aggregator():
 def start_app():
     logger.info("Starting app.py!!!")
     # Python_bin is path of your virtual environment
-    python_bin = r""
+    venv = config["file_path"]["python_bin"]
+    python_bin = r"{}".format(venv)
     # script_file is app.py path
-    script_file = r""
+    app_file = config["file_path"]["script_file_app"]
+    script_file = r"{}".format(app_file)
     #  subprocess.Popen([python_bin, script_file1])
     subprocess.Popen([python_bin, script_file])
 
 
 while 1:
-
-    if settings.SERVER_NAME == 'SIF_MONITOR_MASTER':
+    if config["App"]["SERVER_NAME"] == 'SIF_MONITOR_MASTER':
         start_app()
         start_provision_aggregator()
     else:
         start_app()
-    response = ping_server()
-    if not any(response):
-        start_provision_aggregator()
+        response = ping_server()
+        if not any(response):
+            start_provision_aggregator()
         break
     time.sleep(5)

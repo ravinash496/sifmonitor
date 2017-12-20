@@ -8,7 +8,7 @@ logging_config = dict(
     formatters={
         'verbose': {
             'format': ("[%(asctime)s].%(msecs)03d %(levelname)s "
-                       "[%(name)s:%(lineno)s] %(message)s"),
+                       "[%(filename)s:: %(funcName)s(): %(lineno)s] %(message)s"),
             'datefmt': "%Y-%m-%d %H:%M:%S",
         },
         'simple': {

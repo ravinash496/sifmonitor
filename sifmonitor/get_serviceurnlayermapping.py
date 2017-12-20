@@ -1,6 +1,9 @@
 from sqlalchemy import *
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import select, or_
+import os
+import settings
+from logger_settings import *
 
 
 class MappingDiscoveryException(Exception):
@@ -39,13 +42,22 @@ def get_serviceurn(tablename, engine):
             result = conn.execute(q)
             rows = result.fetchall()
             if len(rows) > 1:
-                raise MappingDiscoveryException(
-                    'Table {0} contained more than one service urn: {1}'.format(tablename, rows))
+                logger.error('MappingDiscoveryException: Table {0} contained more than one service urn: {1}'.format(tablename, rows))
             urn = rows[0]['serviceurn']
     except SQLAlchemyError as ex:
-        raise MappingDiscoveryException('Failed to extract mapping for table {0}'.format(tablename), ex)
-    except MappingDiscoveryException:
-        raise
+        logger.error('MappingDiscoveryException: Failed to extract mapping for table {0}'.format(tablename), ex)
+        try:
+            os.remove(settings.application_flag)
+            exit()
+        except OSError:
+            pass
+    except MappingDiscoveryException as ex:
+        logger.error('MappingDiscoveryException: {}'.format(ex))
+        try:
+            os.remove(settings.application_flag)
+            exit()
+        except OSError:
+            pass
     return urn
 
 
@@ -73,10 +85,19 @@ def get_urn_table_mappings(engine):
                 urn = get_serviceurn(tablename, engine)
                 mappings[urn] = tablename
             if not mappings:
-                raise MappingDiscoveryException('No service boundary tables were found in the database.')
+                logger.error('MappingDiscoveryException: No service boundary tables were found in the database.')
     except SQLAlchemyError as ex:
-        raise MappingDiscoveryException(
-            'Encountered an error when attempting to discover the service boundary tables.', ex)
-    except MappingDiscoveryException:
-        raise
+        logger.error('MappingDiscoveryException: Encountered an error when attempting to discover the service boundary tables.', ex)
+        try:
+            os.remove(settings.application_flag)
+            exit()
+        except OSError:
+            pass
+    except MappingDiscoveryException as ex:
+        logger.error('MappingDiscoveryException: {}'.format(ex))
+        try:
+            os.remove(settings.application_flag)
+            exit()
+        except OSError:
+            pass
     return mappings
