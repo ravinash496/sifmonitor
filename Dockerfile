@@ -1,7 +1,6 @@
 FROM ubuntu:xenial
 
 MAINTAINER GeoComm
-
 RUN echo "deb http://archive.ubuntu.com/ubuntu/ xenial main universe" >> /etc/apt/sources.list && apt-get update
 
 RUN apt-get install -y tar \
@@ -36,15 +35,26 @@ RUN apt-get install -y gdal-bin libgdal-dev
 ARG CPLUS_INCLUDE_PATH=/usr/include/gdal
 ARG C_INCLUDE_PATH=/usr/include/gdal
 
+WORKDIR /app/sifmonitor
 COPY requirements.txt /app/requirements.txt
-COPY /sifmonitor /app/sifmonitor
+COPY sifmonitor/logs /app/sifmonitor/logs
+COPY /sifmonitor /app/sifmonitor 
+
+#Define environment variable
+
+  
+EXPOSE 80
+EXPOSE 9000
+EXPOSE 9001
+EXPOSE 9002
 
 WORKDIR /app
 RUN virtualenv --python python3.6 venv && /bin/bash -c "source ./venv/bin/activate" && ./venv/bin/pip install -r requirements.txt
 
 # Set the default directory where CMD will execute
-WORKDIR /app
+WORKDIR /app/sifmonitor
 
 # Set the default command to execute
 # when creating a new container
-CMD ["/bin/bash"]
+CMD /bin/bash -c "source ../venv/bin/activate && python check_app_status.py"
+

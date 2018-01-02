@@ -1,28 +1,29 @@
 import json
 import os
-import time
+import uuid
 from datetime import datetime
-import psycopg2
 import sqlalchemy
 from sqlalchemy import *
-from sqlalchemy.orm import sessionmaker, scoped_session
-#import provision_aggregator
+import provision_aggregator
 import settings
 import transaction_mapper
 from logger_settings import *
+import pytz
 
-CREDENTIAL_FILE = 'connection.json'
 xml_log_history = "provisioninghistory.json"
+config = settings.read_config_file()
 
 
-def get_databases():
-    """Get credentials from connection.json file
+def get_databases(database_name=None):
+    """Get credentials from .ini file
     :return: databases
     """
     try:
-        with open(CREDENTIAL_FILE, 'r') as fp:
-            data = json.load(fp)
-            databases = list(data.keys())
+        if not database_name:
+            data = eval(config["Database"]["dbs"])
+        else:
+            data = eval(config[database_name]["dbs"])
+        databases = list(data.keys())
         return databases
     except IOError as ie:
         logger.error(ie)
@@ -33,7 +34,7 @@ def execute_sql(sql, fetch=None):
     db = DB()
     databases = get_databases()
     for database in databases:
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+        credentials = eval(config["Database"]["dbs"])[database]
         engine = db.connect(credentials)
         try:
             with engine.connect() as con:
@@ -53,16 +54,19 @@ def retry_execute_sql(sql, databases=None, fetch=None, retry=None):
     retry_exception_flag = False
     retry_exception_fail = False
     successful_dbs = []
-    sql = """ALTER SCHEMA active RENAME TO bogus;
-             ALTER SCHEMA provisioning RENAME TO active; 
-             ALTER SCHEMA bogus RENAME TO provisioning;
-         """
+    sql = """
+            BEGIN;
+            ALTER SCHEMA active RENAME TO bogus;
+            ALTER SCHEMA {0} RENAME TO active;
+            ALTER SCHEMA bogus RENAME TO {0};
+            COMMIT;
+        """.format(settings.target_schema)
 
     db = DB()
     if not databases and not retry:
         databases = get_databases()
     for database in databases:
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+        credentials = eval(config["Database"]["dbs"])[database]
         engine = db.connect(credentials)
 
         try:
@@ -98,7 +102,8 @@ class DB:
         """ Get the lastval from sequence for ogc_fid field from public sequences"""
         databases = get_databases()
         for database in databases:
-            credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            # credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            credentials = eval(config["Database"]["dbs"])[database]
             engine = self.connect(credentials)
             try:
                 with engine.connect() as con:
@@ -131,7 +136,8 @@ class DB:
         # Transaction execution logic only for postgres DB
         databases = get_databases()
         for database in databases:
-            credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            # credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            credentials = eval(config["Database"]["dbs"])[database]
             engine = self.connect(credentials)
             connection = engine.connect()
             trans = connection.begin()
@@ -146,18 +152,20 @@ class DB:
                 logger.info("Connecting to postgresDB to execute the transactions in provisioning schema")
                 connection.execute(transactions)
                 trans.commit()
-                self.log_modification_history()
-            
             except sqlalchemy.exc.IntegrityError as pse:
-                logger.error(":: Duplicate key value violates unique constraint, srcunqid already exists!!!")
+                now = datetime.now(tz=pytz.utc)
+                status = 'fail'
+                message = 'Duplicate key value violates unique constraint, srcunqid already exists'
+                self.log_modification_history(now, now, status, message)
+                logger.error(" Duplicate key value violates unique constraint srcunqid already exists!!!")
                 try:
                     os.remove(settings.application_flag)
                 except OSError:
                     pass
                 exit()
-            
+
             except Exception as error:
-                # Rollback incase of any connection failure
+                # Rollback in case of any connection failure
                 trans.rollback()
                 transaction_mapper.TRANSACTION_RESULTS = {}
                 logger.error(error)
@@ -170,29 +178,30 @@ class DB:
                 connection.close()
 
     # Get the replicationfeed values from the replicationfeed table in postgres
-    def get_replicationfeeds(self):
-        credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
-        engine = self.connect(credentials)
-        try:
-            with engine.connect() as con:
-                sql = "Select id, name, uri, refreshrate, lastupdateprocesed From public.replicationfeeds;"
-                res = con.execute(sql)
-                feed = res.fetchone()
-                if feed:
-                    return feed
-                else:
-                    logger.error("No data retrieved from replicationfeed table!!!")
-                    exit()
-        except Exception as error:
-            logger.error(error)
-            exit()
+    # def get_replicationfeeds(self):
+    #     credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
+    #     engine = self.connect(credentials)
+    #     try:
+    #         with engine.connect() as con:
+    #             sql = "SELECT id, name, uri, refreshrate, lastupdateprocesed FROM public.replicationfeeds;"
+    #             res = con.execute(sql)
+    #             feed = res.fetchone()
+    #             if feed:
+    #                 return feed
+    #             else:
+    #                 logger.error("No data retrieved from replicationfeed table!!!")
+    #                 exit()
+    #     except Exception as error:
+    #         logger.error(error)
+    #         exit()
 
     # Update the replicationFeed updatelastprocessed based on root_updatetimestamp in XML
     def update_last_processed(self, timestamp_update_date, previous_time_stamp, item_id):
         """Update the replicationFeed updatelastprocessed based on XML"""
         databases = get_databases()
         for database in databases:
-            credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            # credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
+            credentials = eval(config["Database"]["dbs"])[database]
             engine = self.connect(credentials)
             try:
                 with engine.connect() as con:
@@ -223,32 +232,41 @@ class DB:
             logger.error(error)
             exit()
 
-    def log_modification_history(self):
+    # update provisioning history table
+    def log_modification_history(self, start_time, end_time, status="success", message=""):
         """Log the modification of xml entires in a history table and provisioninghistory.json file for tracing back the changes
         :return: None
         """
         db = DB()
-        table_names = db.get_all_table_names("provisioning")
-        databases = get_databases()
-        for database in databases:
-            credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
-            modified_tables = list(set((table_name for table_name in transaction_mapper.TRANSACTION_RESULTS.keys() if table_name in table_names)))
-            sql_statements = []
-            for table_name in modified_tables:
-                sql = """Insert into public.provisioninghistory(table_name, modified_count, last_modified) values('{}', {}, '{}'); """.format(table_name, transaction_mapper.TRANSACTION_RESULTS[table_name], datetime.now())
-                sql_statements.append(sql)
-            sql_statements = "".join(sql_statements)
+        provisioning_type = 'Incremental_provisioning'
+        unique_ID = uuid.uuid4()
+        table_names = db.get_all_table_names(settings.target_schema)
 
-            # Write to a temporary json file for future references
-            with open(xml_log_history, 'a+') as fp:
-                json.dump(sql_statements, fp)
-                fp.write("\n")
+        modified_tables = list(set((table_name for table_name in transaction_mapper.TRANSACTION_RESULTS.keys() if
+                                        table_name in table_names)))
+        sql_statements = []
+        for table_name in modified_tables:
 
-            # Write to a Database
-            try:
-                execute_sql(sql_statements)
-                logger.info("Inserted the modifications for tables successfully into provisioning history table!!")
-            except Exception as error:
-                logger.error(error)
-                exit()
+            sql = """INSERT INTO public.provisioning_history(id, layer, load_type, row_count, start_time, end_time, status, messages) VALUES('{}','{}', '{}', '{}', '{}', '{}','{}','{}');""".format(unique_ID, table_name, provisioning_type, transaction_mapper.TRANSACTION_RESULTS[table_name], start_time, end_time, status, message)
 
+            sql_statements.append(sql)
+        sql_statements = "".join(sql_statements)
+
+        # Write to a temporary json file for future references
+        with open(xml_log_history, 'a+') as fp:
+            json.dump(sql_statements, fp)
+            fp.write("\n")
+
+        # Write to a Database
+        try:
+            databases = get_databases("LoggingDB")
+            for database in databases:
+                credentials = eval(config["LoggingDB"]["dbs"])[database]
+                engine = db.connect(credentials)
+
+                with engine.connect() as con:
+                    res = con.execute(sql_statements)
+                    logger.info("Inserted the modifications for tables successfully into provisioning history table!!")
+        except Exception as error:
+            logger.error(error)
+            exit()

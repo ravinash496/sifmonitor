@@ -7,16 +7,16 @@
 
 # Basic Modules
 import json
+import os
 # User defined modules
 import postgresdb
-import os
 import schema_mapper
 import settings
-import serviceurnlayermapping
 from logger_settings import *
 
 application_flag = 'application_flag.txt'
 global TRANSACTION_RESULTS
+
 TRANSACTION_RESULTS = {}
 
 
@@ -387,7 +387,6 @@ def mapsitestructure_si_to_udm_update(transaction_data,
                                     paravalues[32], paravalues[33], paravalues[34], paravalues[35],
                                     paravalues[36]) + " WHERE srcunqid = '" + srcunqid + "';"
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Update successful for SiteStructure!!!"
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -415,7 +414,6 @@ def mapsitestructure_si_to_udm_delete(transaction_data,
     paravalues = get_paravalues(paramkeylist, table_values)
     sql = "Delete from {}.{} where srcunqid = '{}';".format(settings.target_schema,
                                                            table_name, paravalues[0])
-    # action_statement = "Deletion successful for SiteStructure!!!"
     if TRANSACTION_RESULTS.get(table_name):
         TRANSACTION_RESULTS[table_name] += 1
     else:
@@ -493,7 +491,6 @@ def mapunincorporatedboundary_si_to_udm_update(transaction_data,
                                     paravalues[8], paravalues[9],
                                     paravalues[10]) + " WHERE srcunqid = '" + srcunqid + "';"
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Update successful for unincorporatedCommunityBoundary!!!"
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -521,7 +518,6 @@ def mapunincorporatedboundary_si_to_udm_delete(transaction_data,
     paravalues = get_paravalues(paramkeylist, table_values)
     sql = "Delete from {}.{} where srcunqid = '{}';".format(settings.target_schema, table_name,
                                                            paravalues[0])
-    # action_statement = "Deletion successful for uninccommboundary!!!"
     if TRANSACTION_RESULTS.get(table_name):
         TRANSACTION_RESULTS[table_name] += 1
     else:
@@ -601,7 +597,6 @@ def mapincorporatedboundary_si_to_udm_update(transaction_data,
                                                                              paravalues[
                                                                                                10]) + " WHERE srcunqid = '" + srcunqid + "';"
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Update successful for IncorporatedMunicipalityBoundary!!!"
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -702,7 +697,6 @@ def mapstateboundary_si_to_udm_update(transaction_data, transaction_type='Update
                                 paravalues[4], paravalues[5], paravalues[6],
                                 paravalues[7]) + " WHERE srcunqid = '" + srcunqid + "';"
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Update successful for {}!!!".format(table_name)
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[table_name] += 1
         else:
@@ -731,7 +725,6 @@ def mapstateboundary_si_to_udm_delete(transaction_data,
     sql = "Delete from {}.{} where srcunqid = '{}';".format(settings.target_schema,
                                                            table_name, paravalues[0])
 
-    # action_statement = "Deletion successful for {}!!!".format(table_name)
     if TRANSACTION_RESULTS.get(table_name):
         TRANSACTION_RESULTS[table_name] += 1
     else:
@@ -776,7 +769,6 @@ def mapserviceboundary_si_to_udm_insert(transaction_data,
                                                                  paravalues[11],
                                                                  paravalues[12], paravalues[13], paravalues[14])
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Insertion of values into {} table successful".format(service_table_name)
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[service_table_name] += 1
         else:
@@ -822,7 +814,6 @@ def mapserviceboundary_si_to_udm_update(transaction_data,
                                        paravalues[11], paravalues[12], paravalues[13],
                                        paravalues[14]) + " WHERE srcunqid = '" + srcunqid + "';"
         sql = sql.replace("'None'", 'NULL')
-        # action_statement = "Update values into {} table successful".format(service_table_name)
         if TRANSACTION_RESULTS.get(table_name):
             TRANSACTION_RESULTS[service_table_name] += 1
         else:
@@ -845,15 +836,13 @@ def mapserviceboundary_si_to_udm_delete(transaction_data,
     :return: None
     """
     postgres = postgresdb.DB()
-    # service_table_name = postgres.get_service_urn_layer_mapping(
-    #    transaction_data)
+
     service_table_name = get_service_urn(transaction_data)
     table_values = list(transaction_data.get(transaction_type).values())[0]
     paramkeylist = ['UniqueId']
     paravalues = get_paravalues(paramkeylist, table_values)
     sql = "Delete from {}.{} where srcunqid = '{}';".format(settings.target_schema,
                                                            service_table_name, paravalues[0])
-    # action_statement = "Deletion of  values into {} table successfully".format(service_table_name)
     if TRANSACTION_RESULTS.get(service_table_name):
         TRANSACTION_RESULTS[service_table_name] += 1
     else:
