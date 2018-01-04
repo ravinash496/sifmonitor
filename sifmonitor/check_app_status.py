@@ -38,9 +38,9 @@ def get_urls():
         master_host = sif_monitor_details["SIF_MONITOR_MASTER"]["SERVER_HOST"]
 
         if server_list == 1:
-            BACKUP_SERVER_NAME = "SIF_MONITOR_MASTER"
+            MASTER_SERVER_NAME = "SIF_MONITOR_MASTER"
             url1 = "http://{}:{}/ping".format(master_host, sif_monitor_details[SERVER_NAME]['MASTER_SERVER_PORT'])
-            url = [{'url': url1, 'host': BACKUP_SERVER_NAME}]
+            url = [{'url': url1, 'host': MASTER_SERVER_NAME}]
 
         elif server_list > 1:
             master_url = "http://{}:{}/ping".format(master_host, sif_monitor_details["SIF_MONITOR_MASTER"]['APP_SERVER_PORT'])
