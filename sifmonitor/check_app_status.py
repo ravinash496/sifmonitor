@@ -27,6 +27,8 @@ def ping_server():
 
 def get_urls():
     sif_monitor_details = eval(config["App"]["SIFMONITOR_CREDENTIALS"])
+    SERVER_HOST1 = sif_monitor_details[SERVER_NAME]["SERVER_HOST"]
+    number_of_servers = list(sif_monitor_details.keys())
     urls_list = []
     if 'SIF_MONITOR_MASTER' == SERVER_NAME:
         logger.info("No URLs to fetch")
@@ -36,8 +38,9 @@ def get_urls():
         master_host = sif_monitor_details["SIF_MONITOR_MASTER"]["SERVER_HOST"]
 
         if server_list == 1:
+            BACKUP_SERVER_NAME = "SIF_MONITOR_MASTER"
             url1 = "http://{}:{}/ping".format(master_host, sif_monitor_details[SERVER_NAME]['MASTER_SERVER_PORT'])
-            url = {'url': url1, 'host': SERVER_NAME}
+            url = [{'url': url1, 'host': BACKUP_SERVER_NAME}]
 
         elif server_list > 1:
             master_url = "http://{}:{}/ping".format(master_host, sif_monitor_details["SIF_MONITOR_MASTER"]['APP_SERVER_PORT'])
@@ -78,15 +81,13 @@ def start_app():
     #  subprocess.Popen([python_bin, script_file1])
     subprocess.Popen([python_bin, script_file])
 
-
+start_app()
 while 1:
     if config["App"]["SERVER_NAME"] == 'SIF_MONITOR_MASTER':
-        start_app()
         start_provision_aggregator()
     else:
-        start_app()
         response = ping_server()
         if not any(response):
             start_provision_aggregator()
-        break
-    time.sleep(5)
+            break
+    time.sleep(10)

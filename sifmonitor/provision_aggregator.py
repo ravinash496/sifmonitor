@@ -134,7 +134,6 @@ def update_service_urn():
         db = postgresdb.DB()
         credentials = eval(config["Database"]["dbs"])["srgis"]
         engine = db.connect(credentials)
-        # SERVICELAYERURNMAPPING= ''
         SERVICELAYERURNMAPPING = get_urn_table_mappings(engine)
         with open(settings.service_urn_file, 'w') as fp:
             json.dump(SERVICELAYERURNMAPPING, fp)
