@@ -102,7 +102,6 @@ class DB:
         """ Get the lastval from sequence for ogc_fid field from public sequences"""
         databases = get_databases()
         for database in databases:
-            # credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
             credentials = eval(config["Database"]["dbs"])[database]
             engine = self.connect(credentials)
             try:
@@ -177,30 +176,12 @@ class DB:
             finally:
                 connection.close()
 
-    # Get the replicationfeed values from the replicationfeed table in postgres
-    # def get_replicationfeeds(self):
-    #     credentials = settings.read_json(settings.CREDENTIAL_FILE).get('srgis')
-    #     engine = self.connect(credentials)
-    #     try:
-    #         with engine.connect() as con:
-    #             sql = "SELECT id, name, uri, refreshrate, lastupdateprocesed FROM public.replicationfeeds;"
-    #             res = con.execute(sql)
-    #             feed = res.fetchone()
-    #             if feed:
-    #                 return feed
-    #             else:
-    #                 logger.error("No data retrieved from replicationfeed table!!!")
-    #                 exit()
-    #     except Exception as error:
-    #         logger.error(error)
-    #         exit()
 
     # Update the replicationFeed updatelastprocessed based on root_updatetimestamp in XML
     def update_last_processed(self, timestamp_update_date, previous_time_stamp, item_id):
         """Update the replicationFeed updatelastprocessed based on XML"""
         databases = get_databases()
         for database in databases:
-            # credentials = settings.read_json(settings.CREDENTIAL_FILE).get(database)
             credentials = eval(config["Database"]["dbs"])[database]
             engine = self.connect(credentials)
             try:
@@ -244,29 +225,34 @@ class DB:
 
         modified_tables = list(set((table_name for table_name in transaction_mapper.TRANSACTION_RESULTS.keys() if
                                         table_name in table_names)))
-        sql_statements = []
-        for table_name in modified_tables:
 
-            sql = """INSERT INTO public.provisioning_history(id, layer, load_type, row_count, start_time, end_time, status, messages) VALUES('{}','{}', '{}', '{}', '{}', '{}','{}','{}');""".format(unique_ID, table_name, provisioning_type, transaction_mapper.TRANSACTION_RESULTS[table_name], start_time, end_time, status, message)
+        if modified_tables:
+            sql_statements = []
+            for table_name in modified_tables:
 
-            sql_statements.append(sql)
-        sql_statements = "".join(sql_statements)
+                sql = """INSERT INTO public.provisioning_history(id, layer, load_type, row_count, start_time, end_time, status, messages) VALUES('{}','{}', '{}', '{}', '{}', '{}','{}','{}');""".format(unique_ID, table_name, provisioning_type, transaction_mapper.TRANSACTION_RESULTS[table_name], start_time, end_time, status, message)
 
-        # Write to a temporary json file for future references
-        with open(xml_log_history, 'a+') as fp:
-            json.dump(sql_statements, fp)
-            fp.write("\n")
+                sql_statements.append(sql)
+            sql_statements = "".join(sql_statements)
 
-        # Write to a Database
-        try:
-            databases = get_databases("LoggingDB")
-            for database in databases:
-                credentials = eval(config["LoggingDB"]["dbs"])[database]
-                engine = db.connect(credentials)
+            # Write to a temporary json file for future references
+            with open(xml_log_history, 'a+') as fp:
+                json.dump(sql_statements, fp)
+                fp.write("\n")
 
-                with engine.connect() as con:
-                    res = con.execute(sql_statements)
-                    logger.info("Inserted the modifications for tables successfully into provisioning history table!!")
-        except Exception as error:
-            logger.error(error)
-            exit()
+            # Write to a Database
+            try:
+                databases = get_databases("LoggingDB")
+                for database in databases:
+                    credentials = eval(config["LoggingDB"]["dbs"])[database]
+                    engine = db.connect(credentials)
+
+                    with engine.connect() as con:
+                        res = con.execute(sql_statements)
+                        logger.info("Inserted the modifications for tables successfully into provisioning history table!!")
+            except Exception as error:
+                logger.error(error)
+                exit()
+        else:
+            logger.info("No Update in Feed")
+
