@@ -37,7 +37,7 @@ ARG C_INCLUDE_PATH=/usr/include/gdal
 
 WORKDIR /app/sifmonitor
 COPY requirements.txt /app/requirements.txt
-COPY sifmonitor/logs /app/sifmonitor/logs
+#COPY sifmonitor/logs /app/sifmonitor/logs
 COPY /sifmonitor /app/sifmonitor 
 
 #Define environment variable
