@@ -20,7 +20,6 @@ before_script:
 - chmod +x ./sifmonitor_deploy.sh
 script:
 - pytest --cov=sifmonitor ./tests/test_*
-- ./sifmonitor_deploy.sh
 install:
 - pip install -r requirements.txt
 - pip install coverage
@@ -33,6 +32,6 @@ before_install:
 - chmod +x ./ecs-deploy.sh
 after_success:
 - coverage report
-
+- ./sifmonitor_deploy.sh
 notifications:
   webhooks: https://outlook.office.com/webhook/8e85e59c-da42-4a8e-ad98-a7f0173b2a0e@ba05d72b-83fc-45fc-873b-b2841e0752de/TravisCI/a0a34daa96724c4cb6309283da957e6a/56b9b902-14c4-4a02-8944-45059ec4524c
