@@ -16,8 +16,11 @@ env:
   - secure: XJB3w2a9+ffFEfBVrJhyGavXY/Opotg+86qWlRBNGk8HFjaW9uPHd12T0CqjqIeUBblUTKhmMCks7tJNxhJAUWMKp089VVWreKij+ECaMc/idDgde1H5IAzMiVKP5cBEQsR/PR1ziuIhFrMfJsHM0itBzaFmj6XHW6ZKCv5oGgqaKR7YHMHxBByvzXEG60ZfLiHrjcjE79vseo4UkhXYVie6DoXzbGjOLGUME8npkjQGMYfEjquwBoVBMXY235K+t8R7aA6UlN7xhdQQ1dDSRelvG8AVk4k0Hu/R5wN8cyOzaxIWEMY4ntOwzeAaWjhNYWVixt1ITzy79WGpGlId0aEvt91onCpijiA80qLJExkOc2IGTCmsfPylnB2szYBJPKkxH2aqYGgHaBgK2FXUF1D4cZiV7v1lTA7Yrz1tidueZDXY5U2gs7Ts0uBBYJiyvxWEJ2VPBRdqPlDM/if+A0UKv/goD3lMJuWgXzazHoNWsm0ixv5xXjFunTx+JoZReVnLYKWK77oWgM+fSdV42GLePpFa7BA6/nTYqgGkFcoKJ3v/gxjZWKC6GEdiBJWS7ysnUey95rOS1YavrvdeyihiEn+N1wCrA3nn9iEYcfRfZprCIM7DwqwhX5WtvHlweiVS78UBRdSxMcM4IIhnlH3QnSVsjI/e/ruOOCKGjVk=
 services:
 - docker
+before_script:
+- chmod +x ./sifmonitor_deploy.sh
 script:
 - pytest --cov=sifmonitor ./tests/test_*
+- ./sifmonitor_deploy.sh
 install:
 - pip install -r requirements.txt
 - pip install coverage
@@ -27,10 +30,9 @@ before_install:
 - sudo add-apt-repository -y ppa:ubuntugis/ppa -y
 - sudo apt-get update -q
 - sudo apt-get install -y gdal-bin libgdal-dev -y
-- chmod +x ./sifmonitor_deploy.sh
 - chmod +x ./ecs-deploy.sh
 after_success:
 - coverage report
-- "./sifmonitor_deploy.sh"
+
 notifications:
   webhooks: https://outlook.office.com/webhook/8e85e59c-da42-4a8e-ad98-a7f0173b2a0e@ba05d72b-83fc-45fc-873b-b2841e0752de/TravisCI/a0a34daa96724c4cb6309283da957e6a/56b9b902-14c4-4a02-8944-45059ec4524c
